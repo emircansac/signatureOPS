@@ -1,0 +1,23 @@
+{
+  "name": "signatureops",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "dev:clean": "rm -rf apps/web/.next && turbo dev",
+    "test": "turbo test",
+    "lint": "turbo lint",
+    "db:generate": "pnpm --filter @signatureops/db generate",
+    "db:migrate": "pnpm --filter @signatureops/db migrate",
+    "db:seed": "pnpm --filter @signatureops/db seed",
+    "db:push": "pnpm --filter @signatureops/db push"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

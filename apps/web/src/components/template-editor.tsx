@@ -1,0 +1,295 @@
+"use client";
+
+import { useState } from "react";
+import { useTranslations } from "next-intl";
+import type { TemplateDefinition, Block } from "@signatureops/schema";
+import { trpc } from "@/lib/trpc";
+import { AssetLibrary } from "@/components/asset-library";
+import { BlockConfig } from "@/components/block-config";
+import { Badge, Button, Card, Input, Label, Select } from "@/components/ui";
+
+const BLOCK_TYPES = [
+  "identity",
+  "contact_details",
+  "company_logo",
+  "profile_photo",
+  "social_links",
+  "cta_button",
+  "campaign_banner",
+  "legal_disclaimer",
+  "certifications",
+  "custom_text",
+  "spacer",
+  "divider",
+] as const;
+
+function defaultBlock(type: (typeof BLOCK_TYPES)[number], logoAssetId?: string): Block {
+  switch (type) {
+    case "identity":
+      return { type: "identity", fields: ["displayName", "jobTitle"] };
+    case "contact_details":
+      return { type: "contact_details", fields: ["email", "mobile"] };
+    case "company_logo":
+      return { type: "company_logo", assetId: logoAssetId ?? "" };
+    case "profile_photo":
+      return { type: "profile_photo" };
+    case "social_links":
+      return { type: "social_links", links: [{ network: "LinkedIn", url: "https://linkedin.com" }] };
+    case "cta_button":
+      return { type: "cta_button", label: "CTA", url: "https://example.com" };
+    case "campaign_banner":
+      return { type: "campaign_banner", campaignId: "" };
+    case "legal_disclaimer":
+      return { type: "legal_disclaimer", text: "Confidential. {{organization.name}}" };
+    case "certifications":
+      return { type: "certifications", items: ["ISO 27001"] };
+    case "custom_text":
+      return { type: "custom_text", text: "Custom text" };
+    case "spacer":
+      return { type: "spacer" };
+    case "divider":
+      return { type: "divider" };
+  }
+}
+
+export function TemplateEditor({
+  initial,
+  onSave,
+  saving,
+}: {
+  initial?: { name: string; definition: TemplateDefinition };
+  onSave: (data: { name: string; definition: TemplateDefinition }) => void;
+  saving?: boolean;
+}) {
+  const t = useTranslations("templates");
+  const tc = useTranslations("common");
+  const tb = useTranslations("blocks");
+  const [name, setName] = useState(initial?.name ?? "New Template");
+  const [definition, setDefinition] = useState<TemplateDefinition>(
+    initial?.definition ?? {
+      layout: "single-column",
+      blocks: [
+        { type: "identity", fields: ["displayName", "jobTitle"] },
+        { type: "contact_details", fields: ["email"] },
+      ],
+    },
+  );
+  const [showAssets, setShowAssets] = useState(false);
+  const [activeBlockIndex, setActiveBlockIndex] = useState<number | null>(null);
+
+  const { data: users } = trpc.users.list.useQuery();
+  const { data: assets } = trpc.assets.list.useQuery(undefined);
+  const [previewUserId, setPreviewUserId] = useState<string>("");
+  const [copied, setCopied] = useState(false);
+
+  const defaultLogoId = assets?.find((a) => a.kind === "LOGO")?.id;
+
+  const { data: preview, refetch: refetchPreview } = trpc.templates.compilePreview.useQuery(
+    { definition, userId: previewUserId || users?.[0]?.id || "" },
+    { enabled: !!(previewUserId || users?.[0]?.id) },
+  );
+
+  const copyHtml = async () => {
+    if (!preview?.html) return;
+    await navigator.clipboard.writeText(preview.html);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const moveBlock = (index: number, direction: -1 | 1) => {
+    const newBlocks = [...definition.blocks];
+    const target = index + direction;
+    if (target < 0 || target >= newBlocks.length) return;
+    [newBlocks[index], newBlocks[target]] = [newBlocks[target]!, newBlocks[index]!];
+    setDefinition({ ...definition, blocks: newBlocks });
+    setActiveBlockIndex(target);
+  };
+
+  const removeBlock = (index: number) => {
+    setDefinition({
+      ...definition,
+      blocks: definition.blocks.filter((_, i) => i !== index),
+    });
+    setActiveBlockIndex(null);
+  };
+
+  const addBlock = (type: (typeof BLOCK_TYPES)[number]) => {
+    const newIndex = definition.blocks.length;
+    setDefinition({
+      ...definition,
+      blocks: [...definition.blocks, defaultBlock(type, defaultLogoId)],
+    });
+    setActiveBlockIndex(newIndex);
+  };
+
+  const updateBlock = (index: number, block: Block) => {
+    const blocks = [...definition.blocks];
+    blocks[index] = block;
+    setDefinition({ ...definition, blocks });
+  };
+
+  const handleAssetSelect = (assetId: string) => {
+    if (activeBlockIndex === null) return;
+    const block = definition.blocks[activeBlockIndex];
+    if (!block) return;
+
+    if (block.type === "company_logo") {
+      updateBlock(activeBlockIndex, { ...block, assetId });
+    }
+    setShowAssets(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="space-y-4">
+          <div>
+            <Label>{tc("name")}</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div>
+            <Label>{t("layout")}</Label>
+            <Select
+              value={definition.layout}
+              onChange={(e) =>
+                setDefinition({
+                  ...definition,
+                  layout: e.target.value as "single-column" | "two-column",
+                })
+              }
+            >
+              <option value="single-column">{t("singleColumn")}</option>
+              <option value="two-column">{t("twoColumn")}</option>
+            </Select>
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <Label>{t("blocks")}</Label>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => setShowAssets(!showAssets)}>
+                  {showAssets ? t("hideImages") : t("manageImages")}
+                </Button>
+                <Select
+                  defaultValue=""
+                  onChange={(e) => {
+                    if (e.target.value) addBlock(e.target.value as (typeof BLOCK_TYPES)[number]);
+                    e.target.value = "";
+                  }}
+                >
+                  <option value="">{t("addBlock")}</option>
+                  {BLOCK_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {tb(type)}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {definition.blocks.map((block, index) => (
+                <Card
+                  key={index}
+                  className={`p-3 ${activeBlockIndex === index ? "ring-2 ring-blue-400" : ""}`}
+                >
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      className="font-medium text-left hover:text-blue-600"
+                      onClick={() => setActiveBlockIndex(activeBlockIndex === index ? null : index)}
+                    >
+                      {tb(block.type)}
+                      {block.type === "company_logo" && "assetId" in block && block.assetId && (
+                        <span className="ml-2 text-xs text-zinc-400">({block.assetId})</span>
+                      )}
+                    </button>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" onClick={() => moveBlock(index, -1)}>
+                        ↑
+                      </Button>
+                      <Button variant="ghost" onClick={() => moveBlock(index, 1)}>
+                        ↓
+                      </Button>
+                      <Button variant="ghost" onClick={() => removeBlock(index)}>
+                        ×
+                      </Button>
+                    </div>
+                  </div>
+                  {activeBlockIndex === index && (
+                    <BlockConfig block={block} index={index} onChange={updateBlock} />
+                  )}
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <Button onClick={() => onSave({ name, definition })} disabled={saving}>
+            {saving ? "..." : tc("save")}
+          </Button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <Label>{t("previewUser")}</Label>
+            <Select
+              value={previewUserId || users?.[0]?.id || ""}
+              onChange={(e) => setPreviewUserId(e.target.value)}
+            >
+              {users?.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.displayName}
+                </option>
+              ))}
+            </Select>
+            <Button variant="secondary" className="mt-2" onClick={() => refetchPreview()}>
+              {tc("preview")}
+            </Button>
+            {preview?.html && (
+              <Button variant="secondary" className="mt-2 ml-2" onClick={copyHtml}>
+                {copied ? tc("copied") : t("copyForGmail")}
+              </Button>
+            )}
+          </div>
+
+          {preview && (
+            <>
+              <Card>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-medium">{t("lintPanel")}</span>
+                  <Badge variant={preview.lint.passed ? "success" : "warning"}>
+                    {preview.lint.score}/100
+                  </Badge>
+                </div>
+                <ul className="space-y-1 text-sm">
+                  {preview.lint.issues.slice(0, 5).map((issue) => (
+                    <li key={issue.id} className="text-zinc-600">
+                      {issue.message}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+              <Card>
+                <div
+                  className="overflow-auto rounded border border-zinc-100 p-4"
+                  dangerouslySetInnerHTML={{ __html: preview.html }}
+                />
+              </Card>
+            </>
+          )}
+        </div>
+      </div>
+
+      {showAssets && (
+        <AssetLibrary
+          onSelect={handleAssetSelect}
+          selectedId={
+            activeBlockIndex !== null &&
+            definition.blocks[activeBlockIndex]?.type === "company_logo"
+              ? (definition.blocks[activeBlockIndex] as { assetId: string }).assetId
+              : undefined
+          }
+        />
+      )}
+    </div>
+  );
+}

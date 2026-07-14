@@ -1,0 +1,47 @@
+{
+  "name": "@signatureops/web",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "playwright test",
+    "test:e2e": "playwright test",
+    "postinstall": "playwright install chromium"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.11.1",
+    "@signatureops/compiler": "workspace:*",
+    "@signatureops/db": "workspace:*",
+    "@signatureops/linter": "workspace:*",
+    "@signatureops/rules": "workspace:*",
+    "@signatureops/schema": "workspace:*",
+    "@tanstack/react-query": "^5.81.5",
+    "@trpc/client": "^11.4.3",
+    "@trpc/react-query": "^11.4.3",
+    "@trpc/server": "^11.4.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.525.0",
+    "next": "^15.3.5",
+    "next-intl": "^4.3.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "superjson": "^2.2.2",
+    "tailwind-merge": "^3.3.1",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.53.2",
+    "@tailwindcss/postcss": "^4.1.11",
+    "@types/node": "^24.0.10",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "eslint": "^9.30.1",
+    "eslint-config-next": "^15.3.5",
+    "tailwindcss": "^4.1.11",
+    "typescript": "^5.8.3"
+  }
+}

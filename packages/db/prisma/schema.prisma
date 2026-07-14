@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Provider {
+  GOOGLE
+  MICROSOFT
+  BOTH
+}
+
+enum RuleLevel {
+  USER
+  GROUP
+  DEPT_OFFICE
+  ORG
+}
+
+enum AssetKind {
+  LOGO
+  BANNER
+  CERTIFICATION
+  PHOTO
+}
+
+enum DeployStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  SKIPPED
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  CONTENT_MANAGER
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  provider  Provider @default(BOTH)
+  createdAt DateTime @default(now())
+
+  users       User[]
+  groups      Group[]
+  templates   Template[]
+  rules       Rule[]
+  campaigns   Campaign[]
+  brandAssets BrandAsset[]
+  deployments Deployment[]
+  auditEvents AuditEvent[]
+  admins      AdminUser[]
+}
+
+model AdminUser {
+  id        String    @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  email     String
+  name      String
+  role      AdminRole @default(CONTENT_MANAGER)
+  createdAt DateTime  @default(now())
+
+  @@unique([orgId, email])
+}
+
+model User {
+  id            String   @id @default(cuid())
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  externalId    String
+  displayName   String
+  jobTitle      String?
+  department    String?
+  country       String?
+  email         String
+  mobile        String?
+  officePhone   String?
+  photoUrl      String?
+  managerId     String?
+  attributes    String   @default("{}")
+  sendAsAliases String   @default("[]")
+
+  @@unique([orgId, externalId])
+}
+
+model Group {
+  id         String @id @default(cuid())
+  orgId      String
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  externalId String
+  name       String
+  memberIds  String @default("[]")
+
+  @@unique([orgId, externalId])
+}
+
+model Template {
+  id            String @id @default(cuid())
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name          String
+  definition    String
+  compatibility String @default("{}")
+  version       Int    @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Rule {
+  id         String    @id @default(cuid())
+  orgId      String
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name       String
+  level      RuleLevel
+  priority   Int
+  conditions String
+  actions    String
+  enabled    Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+model Campaign {
+  id            String   @id @default(cuid())
+  orgId         String
+  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name          String
+  bannerAssetId String
+  startDate     DateTime
+  endDate       DateTime
+  targeting     String   @default("{}")
+}
+
+model BrandAsset {
+  id     String    @id @default(cuid())
+  orgId  String
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  kind   AssetKind
+  url    String
+  bytes  Int       @default(0)
+  width  Int?
+  height Int?
+  alt    String?
+}
+
+model Deployment {
+  id               String       @id @default(cuid())
+  orgId            String
+  org              Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId           String
+  provider         Provider
+  status           DeployStatus @default(PENDING)
+  compiledHtmlHash String?
+  sanitizedDiff    String?
+  error            String?
+  attempt          Int          @default(0)
+  updatedAt        DateTime     @updatedAt
+}
+
+model AuditEvent {
+  id     String   @id @default(cuid())
+  orgId  String
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  actor  String
+  action String
+  payload String  @default("{}")
+  at     DateTime @default(now())
+}

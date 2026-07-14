@@ -1,0 +1,20 @@
+---
+description: Discipline for the pure core packages (schema, compiler, linter, rules).
+globs: ["packages/schema/**/*.ts", "packages/compiler/**/*.ts", "packages/linter/**/*.ts", "packages/rules/**/*.ts"]
+alwaysApply: false
+---
+
+# Pure core packages
+- These packages are PURE: no network, no db, no framework imports. Keep them that way. Apps and
+  adapters depend on them, never the reverse.
+- Test-first: write the failing Vitest cases from the phase acceptance criteria in docs/build-plan.md,
+  then implement until green.
+- Do NOT begin Phase 6+ (OAuth / integrations) until Phases 1–4 pass with green tests.
+
+# rules engine specifics
+- Every rule decision MUST emit an explanation trace. No implicit conflict resolution.
+- Precedence is explicit: User → Group → Dept/Office → Org default, with manual ordering in a level.
+- Any change must keep the simulator explanation-trace tests passing.
+
+# compiler specifics
+- Output must be deterministic: same input → byte-identical HTML.

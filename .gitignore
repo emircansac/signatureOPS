@@ -1,0 +1,12 @@
+node_modules
+dist
+.next
+.turbo
+.env
+.env.local
+*.db
+*.db-journal
+coverage
+# Ignore uploaded files but keep folder
+apps/web/public/uploads/*
+!apps/web/public/uploads/.gitkeep

@@ -1,0 +1,28 @@
+---
+description: Non-negotiable architecture, conventions, and positioning for SignatureOps. Read docs/build-plan.md for full context.
+alwaysApply: true
+---
+
+# Hard architectural facts — never violate
+- Microsoft Graph has NO API to write/set an Outlook signature. NEVER generate a Graph call that
+  claims to set a signature. Microsoft signatures are applied ONLY via an Outlook add-in using
+  event-based activation + `Office.context.mailbox.item.body.setSignatureAsync`.
+- Google Workspace DOES have a write API: Gmail `users.settings.sendAs.update`, per alias. Gmail
+  sanitizes submitted HTML, so ALWAYS read the result back and diff it — never assume stored HTML
+  equals submitted HTML.
+- We never route, relay, read, or store email message content. If a task implies it, STOP and flag.
+  Server-side transport stamping is out of scope.
+- `OnMessageFromChanged` (account-switch refresh) needs Mailbox requirement set 1.13; basic
+  `setSignatureAsync` needs 1.10. Gate features accordingly.
+- Mac/mobile Outlook don't support the unified manifest; they need a separate add-in-only manifest.
+
+# Conventions
+- TypeScript strict everywhere. Validate every external boundary with Zod. No `any` in package
+  public APIs.
+- Two roles only: SUPER_ADMIN, CONTENT_MANAGER. Do NOT scaffold SCIM or a custom role builder.
+- The template JSON is the source of truth. HTML is generated output — never hand-edited or stored
+  as the editable source.
+
+# Positioning honesty (affects UI copy and API responses)
+- Never assert signatures/disclaimers are guaranteed on 100% of outbound mail. Google signatures are
+  "stored"; Microsoft signatures are "applied in the Outlook client at compose time."

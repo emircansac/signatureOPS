@@ -1,0 +1,14 @@
+---
+description: Email-safe HTML output constraints for the signature compiler.
+globs: ["packages/compiler/**/*.ts"]
+alwaysApply: false
+---
+
+# Signature HTML output rules
+- Table-based layout with fully inline styles ONLY.
+- NEVER emit: flexbox, CSS grid, `<script>`, `<form>`, `<video>`, external stylesheets, or
+  non-HTTPS resource URLs.
+- Always escape directory values before interpolation.
+- Enforce image dimensions and add `alt` text to every image.
+- Produce a plain-text fallback and, where needed, Gmail- and Outlook-specific variants.
+- Report the computed HTML size in bytes.
