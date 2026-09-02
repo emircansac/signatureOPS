@@ -8,12 +8,12 @@ const MAX_BYTES = 500_000;
 
 export async function POST(req: Request) {
   try {
+    const formData = await req.formData();
     const session = await auth();
     if (!session?.orgId) {
       return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const formData = await req.formData();
     const file = formData.get("file");
 
     if (!file || !(file instanceof File)) {

@@ -1,11 +1,15 @@
 import type {
+  AssetContext,
   Block,
   CompileContext,
+  LogoVariant,
+  SocialPlatformId,
   TemplateDefinition,
   VisibilityContext,
 } from "@signatureops/schema";
 import {
   evaluateVisibleWhen,
+  normalizeSocialPlatform,
   resolvePlaceholders,
 } from "@signatureops/schema";
 import { escapeHtml } from "./escape.js";
@@ -20,8 +24,111 @@ const FIELD_MAP: Record<string, string> = {
   officePhone: "user.officePhone",
 };
 
+export const DEFAULT_TOKENS = {
+  ink: "#1C2B3A",
+  seal: "#A63D2F",
+  link: "#0066cc",
+} as const;
+
+const VARIANT_SLOT: Record<Exclude<LogoVariant, "default">, "light" | "dark" | "mark"> = {
+  light: "light",
+  dark: "dark",
+  mark: "mark",
+};
+
+const STANDARD_SOCIAL_COLORS: Record<SocialPlatformId, string> = {
+  linkedin: "#0A66C2",
+  x: "#111111",
+  instagram: "#E4405F",
+  facebook: "#1877F2",
+  youtube: "#FF0000",
+};
+
+const STANDARD_SOCIAL_LABELS: Record<SocialPlatformId, string> = {
+  linkedin: "in",
+  x: "X",
+  instagram: "Ig",
+  facebook: "f",
+  youtube: "Yt",
+};
+
 function isBlockVisible(block: Block, context: VisibilityContext): boolean {
   return evaluateVisibleWhen(block.visibleWhen, context);
+}
+
+function tokens(context: CompileContext) {
+  return context.identity?.tokens ?? DEFAULT_TOKENS;
+}
+
+function isAllowedImageUrl(url: string): boolean {
+  return (
+    url.startsWith("https://") ||
+    url.startsWith("http://localhost") ||
+    url.startsWith("http://127.0.0.1")
+  );
+}
+
+export function resolveAsset(
+  assetId: string | undefined,
+  context: CompileContext,
+): AssetContext | undefined {
+  if (!assetId) return undefined;
+  const asset = context.assets[assetId];
+  if (!asset || !isAllowedImageUrl(asset.url)) return undefined;
+  return asset;
+}
+
+function campaignIsUsable(
+  campaign: CompileContext["campaigns"][string] | undefined,
+): campaign is CompileContext["campaigns"][string] {
+  return Boolean(campaign && campaign.active !== false);
+}
+
+function activeCampaign(context: CompileContext) {
+  if (!context.activeCampaignId) return undefined;
+  const campaign = context.campaigns[context.activeCampaignId];
+  return campaignIsUsable(campaign) ? campaign : undefined;
+}
+
+export function resolveLogoAsset(
+  block: Extract<Block, { type: "company_logo" }>,
+  context: CompileContext,
+): AssetContext | undefined {
+  const overrideId = activeCampaign(context)?.logoOverrideAssetId;
+  if (overrideId) {
+    const override = resolveAsset(overrideId, context);
+    if (override) return override;
+  }
+  const variant = block.logoVariant ?? "default";
+  if (variant !== "default") {
+    const slotId = context.identity?.logoSlotIds[VARIANT_SLOT[variant]];
+    const variantAsset = resolveAsset(slotId, context);
+    if (variantAsset) return variantAsset;
+  }
+  const selected = resolveAsset(block.assetId, context);
+  if (selected) return selected;
+  return resolveAsset(context.identity?.logoSlotIds.default, context);
+}
+
+function resolveColorHex(colorAssetId: string | null | undefined, context: CompileContext): string {
+  const palette = context.identity?.colors ?? [];
+  if (colorAssetId) {
+    const match = palette.find((color) => color.id === colorAssetId);
+    if (match) return match.hex;
+  }
+  if (context.identity) return tokens(context).seal;
+  return DEFAULT_TOKENS.link;
+}
+
+function renderImg(
+  asset: AssetContext,
+  fallbackAlt: string,
+  width: number,
+  height: number,
+  extraStyle = "",
+): string {
+  const alt = escapeHtml(asset.alt ?? fallbackAlt);
+  return `<img src="${escapeHtml(asset.url)}" alt="${alt}" width="${width}" height="${height}" style="display:block;border:0;outline:none;${extraStyle}" />`;
 }
 
 function renderIdentity(fields: string[], context: CompileContext): string {
@@ -43,17 +150,18 @@ function renderIdentity(fields: string[], context: CompileContext): string {
 }
 
 function renderContact(fields: string[], context: CompileContext): string {
+  const link = context.identity ? tokens(context).link : DEFAULT_TOKENS.link;
   const lines = fields
     .map((field) => {
       const path = FIELD_MAP[field] ?? `user.${field}`;
       const value = resolvePlaceholders(`{{${path}}}`, context.user);
       if (!value) return "";
       if (field === "email") {
-        return `<p style="font-family:Arial,sans-serif;font-size:12px;color:#555555;margin:0;padding:0;"><a href="mailto:${escapeHtml(value)}" style="color:#0066cc;text-decoration:none;">${escapeHtml(value)}</a></p>`;
+        return `<p style="font-family:Arial,sans-serif;font-size:12px;color:#555555;margin:0;padding:0;"><a href="mailto:${escapeHtml(value)}" style="color:${link};text-decoration:none;">${escapeHtml(value)}</a></p>`;
       }
       if (field === "mobile" || field === "officePhone") {
         const tel = value.replace(/\D/g, "");
-        return `<p style="font-family:Arial,sans-serif;font-size:12px;color:#555555;margin:0;padding:0;"><a href="tel:${escapeHtml(tel)}" style="color:#0066cc;text-decoration:none;">${escapeHtml(value)}</a></p>`;
+        return `<p style="font-family:Arial,sans-serif;font-size:12px;color:#555555;margin:0;padding:0;"><a href="tel:${escapeHtml(tel)}" style="color:${link};text-decoration:none;">${escapeHtml(value)}</a></p>`;
       }
       return `<p style="font-family:Arial,sans-serif;font-size:12px;color:#555555;margin:0;padding:0;">${escapeHtml(value)}</p>`;
     })
@@ -63,23 +171,12 @@ function renderContact(fields: string[], context: CompileContext): string {
   return `<td style="vertical-align:top;padding:0;">${lines}</td>`;
 }
 
-function isAllowedImageUrl(url: string): boolean {
-  return (
-    url.startsWith("https://") ||
-    url.startsWith("http://localhost") ||
-    url.startsWith("http://127.0.0.1")
-  );
-}
-
-function renderLogo(assetId: string, context: CompileContext): string {
-  const asset = context.assets[assetId];
+function renderLogo(block: Extract<Block, { type: "company_logo" }>, context: CompileContext): string {
+  const asset = resolveLogoAsset(block, context);
   if (!asset) return "";
   const w = asset.width ?? 120;
   const h = asset.height ?? 40;
-  const alt = escapeHtml(asset.alt ?? "Company logo");
-  const url = isAllowedImageUrl(asset.url) ? asset.url : "";
-  if (!url) return "";
-  return `<td style="vertical-align:top;padding:0 12px 8px 0;"><img src="${escapeHtml(url)}" alt="${alt}" width="${w}" height="${h}" style="display:block;border:0;outline:none;" /></td>`;
+  return `<td style="vertical-align:top;padding:0 12px 8px 0;">${renderImg(asset, "Company logo", w, h)}</td>`;
 }
 
 function renderProfilePhoto(context: CompileContext): string {
@@ -88,39 +185,120 @@ function renderProfilePhoto(context: CompileContext): string {
   return `<td style="vertical-align:top;padding:0 12px 0 0;"><img src="${escapeHtml(url)}" alt="${escapeHtml(context.user.user.displayName)}" width="64" height="64" style="display:block;border-radius:32px;border:0;outline:none;" /></td>`;
 }
 
+function socialEntries(block: Extract<Block, { type: "social_links" }>) {
+  const fromLinks = block.links
+    .map((link) => {
+      const platform = normalizeSocialPlatform(link.network);
+      if (!platform || !link.url.startsWith("https://")) return null;
+      return { platform, url: link.url, label: link.network };
+    })
+    .filter((row): row is { platform: SocialPlatformId; url: string; label: string } => Boolean(row));
+
+  const platforms = block.platforms.length > 0 ? block.platforms : fromLinks.map((row) => row.platform);
+  return platforms
+    .map((platform) => {
+      const match = fromLinks.find((row) => row.platform === platform);
+      if (!match) return null;
+      return match;
+    })
+    .filter((row): row is { platform: SocialPlatformId; url: string; label: string } => Boolean(row));
+}
+
 function renderSocialLinks(
-  links: { network: string; url: string }[],
+  block: Extract<Block, { type: "social_links" }>,
+  context: CompileContext,
 ): string {
-  const items = links
-    .filter((l) => l.url.startsWith("https://"))
-    .map(
-      (l) =>
-        `<a href="${escapeHtml(l.url)}" style="font-family:Arial,sans-serif;font-size:11px;color:#0066cc;text-decoration:none;margin-right:8px;">${escapeHtml(l.network)}</a>`,
-    )
+  const entries = socialEntries(block);
+  if (entries.length === 0) return "";
+  const custom = context.identity?.socialIconMode === "custom";
+  const link = tokens(context).link;
+  const items = entries
+    .map((entry) => {
+      const iconId = context.identity?.socialIconAssetIds[entry.platform];
+      const icon = custom ? resolveAsset(iconId, context) : undefined;
+      if (icon) {
+        const w = icon.width ?? 16;
+        const h = icon.height ?? 16;
+        return `<a href="${escapeHtml(entry.url)}" style="text-decoration:none;margin-right:8px;">${renderImg(icon, entry.label, w, h, "display:inline-block;")}</a>`;
+      }
+      if (custom) {
+        const color = STANDARD_SOCIAL_COLORS[entry.platform];
+        const glyph = STANDARD_SOCIAL_LABELS[entry.platform];
+        return `<a href="${escapeHtml(entry.url)}" style="font-family:Arial,sans-serif;font-size:10px;color:#ffffff;background-color:${color};text-decoration:none;margin-right:6px;padding:2px 5px;display:inline-block;">${escapeHtml(glyph)}</a>`;
+      }
+      return `<a href="${escapeHtml(entry.url)}" style="font-family:Arial,sans-serif;font-size:11px;color:${link};text-decoration:none;margin-right:8px;">${escapeHtml(entry.label)}</a>`;
+    })
     .join("");
   return `<tr><td colspan="2" style="padding:4px 0;">${items}</td></tr>`;
 }
 
-function renderCta(label: string, url: string): string {
+function renderCta(block: Extract<Block, { type: "cta_button" }>, context: CompileContext): string {
+  const override = activeCampaign(context)?.ctaOverride;
+  const label = override?.text?.trim() || block.label;
+  const url = override?.link?.trim() || block.url;
   if (!url.startsWith("https://")) return "";
-  return `<tr><td colspan="2" style="padding:8px 0;"><a href="${escapeHtml(url)}" style="font-family:Arial,sans-serif;font-size:12px;color:#ffffff;background-color:#0066cc;text-decoration:none;padding:6px 12px;display:inline-block;border-radius:4px;">${escapeHtml(label)}</a></td></tr>`;
+  const fill = resolveColorHex(block.colorAssetId, context);
+  const icon = resolveAsset(block.assetId, context);
+  const iconHtml = icon
+    ? `${renderImg(icon, label, icon.width ?? 16, icon.height ?? 16, "display:inline-block;vertical-align:middle;margin-right:6px;")} `
+    : "";
+  return `<tr><td colspan="2" style="padding:8px 0;"><a href="${escapeHtml(url)}" style="font-family:Arial,sans-serif;font-size:12px;color:#ffffff;background-color:${fill};text-decoration:none;padding:6px 12px;display:inline-block;border-radius:4px;">${iconHtml}${escapeHtml(label)}</a></td></tr>`;
 }
 
-function renderCampaign(campaignId: string, context: CompileContext): string {
-  const campaign = context.campaigns[campaignId];
-  if (!campaign || !isAllowedImageUrl(campaign.bannerUrl)) return "";
-  const w = campaign.width ?? 400;
-  const h = campaign.height ?? 80;
-  return `<tr><td colspan="2" style="padding:8px 0;"><img src="${escapeHtml(campaign.bannerUrl)}" alt="Campaign banner" width="${w}" height="${h}" style="display:block;border:0;outline:none;max-width:100%;" /></td></tr>`;
+function renderCampaign(
+  block: Extract<Block, { type: "campaign_banner" }>,
+  context: CompileContext,
+): string {
+  const applied = activeCampaign(context);
+  const fromBlock = block.campaignId ? context.campaigns[block.campaignId] : undefined;
+  const campaign = campaignIsUsable(applied) ? applied : campaignIsUsable(fromBlock) ? fromBlock : undefined;
+  if (campaign && isAllowedImageUrl(campaign.bannerUrl)) {
+    const w = campaign.width ?? 400;
+    const h = campaign.height ?? 80;
+    const slogan = campaign.slogan?.trim()
+      ? `<p style="font-family:Arial,sans-serif;font-size:11px;color:#555555;margin:6px 0 0 0;padding:0;">${escapeHtml(campaign.slogan.trim())}</p>`
+      : "";
+    return `<tr><td colspan="2" style="padding:8px 0;"><img src="${escapeHtml(campaign.bannerUrl)}" alt="Campaign banner" width="${w}" height="${h}" style="display:block;border:0;outline:none;max-width:100%;" />${slogan}</td></tr>`;
+  }
+  const asset = resolveAsset(block.assetId, context);
+  if (!asset) return "";
+  const w = asset.width ?? 400;
+  const h = asset.height ?? 80;
+  return `<tr><td colspan="2" style="padding:8px 0;">${renderImg(asset, asset.alt ?? "Banner", w, h, "max-width:100%;")}</td></tr>`;
 }
 
-function renderDisclaimer(text: string, context: CompileContext): string {
-  const resolved = resolvePlaceholders(text, context.user);
-  return `<tr><td colspan="2" style="padding:8px 0 0 0;"><p style="font-family:Arial,sans-serif;font-size:10px;color:#888888;margin:0;padding:0;line-height:1.4;">${escapeHtml(resolved)}</p></td></tr>`;
+function renderDisclaimer(
+  block: Extract<Block, { type: "legal_disclaimer" }>,
+  context: CompileContext,
+): string {
+  const resolved = resolvePlaceholders(block.text, context.user);
+  const text = `<p style="font-family:Arial,sans-serif;font-size:10px;color:#888888;margin:0;padding:0;line-height:1.4;">${escapeHtml(resolved)}</p>`;
+  const badge = resolveAsset(block.assetId, context);
+  if (!badge) {
+    return `<tr><td colspan="2" style="padding:8px 0 0 0;">${text}</td></tr>`;
+  }
+  return `<tr><td colspan="2" style="padding:8px 0 0 0;"><table cellpadding="0" cellspacing="0" border="0"><tr><td style="vertical-align:top;padding:0 8px 0 0;">${renderImg(badge, "Legal badge", badge.width ?? 24, badge.height ?? 24)}</td><td style="vertical-align:top;">${text}</td></tr></table></td></tr>`;
 }
 
-function renderCertifications(items: string[]): string {
-  const text = items.map((i) => escapeHtml(i)).join(" · ");
+function renderCertifications(
+  block: Extract<Block, { type: "certifications" }>,
+  context: CompileContext,
+): string {
+  const images = block.assetIds
+    .map((id) => resolveAsset(id, context))
+    .filter((asset): asset is AssetContext => Boolean(asset));
+  if (images.length > 0) {
+    const imgs = images
+      .map(
+        (asset) =>
+          `<td style="padding:0 6px 0 0;vertical-align:middle;">${renderImg(asset, asset.alt ?? "Certification", asset.width ?? 32, asset.height ?? 32)}</td>`,
+      )
+      .join("");
+    return `<tr><td colspan="2" style="padding:4px 0;"><table cellpadding="0" cellspacing="0" border="0"><tr>${imgs}</tr></table></td></tr>`;
+  }
+  const items = block.items?.filter(Boolean) ?? [];
+  if (items.length === 0) return "";
+  const text = items.map((item) => escapeHtml(item)).join(" · ");
   return `<tr><td colspan="2" style="padding:4px 0;"><p style="font-family:Arial,sans-serif;font-size:10px;color:#666666;margin:0;padding:0;">${text}</p></td></tr>`;
 }
 
@@ -145,24 +323,32 @@ export function renderBlock(
   if (!isBlockVisible(block, visibility)) return "";
 
   switch (block.type) {
-    case "identity":
-      return `<tr>${renderIdentity(block.fields, context)}</tr>`;
-    case "contact_details":
-      return `<tr>${renderContact(block.fields, context)}</tr>`;
-    case "company_logo":
-      return `<tr>${renderLogo(block.assetId, context)}</tr>`;
-    case "profile_photo":
-      return `<tr>${renderProfilePhoto(context)}</tr>`;
+    case "identity": {
+      const html = renderIdentity(block.fields, context);
+      return html.includes("<p") ? `<tr>${html}</tr>` : "";
+    }
+    case "contact_details": {
+      const html = renderContact(block.fields, context);
+      return html.includes("<p") ? `<tr>${html}</tr>` : "";
+    }
+    case "company_logo": {
+      const html = renderLogo(block, context);
+      return html ? `<tr>${html}</tr>` : "";
+    }
+    case "profile_photo": {
+      const html = renderProfilePhoto(context);
+      return html ? `<tr>${html}</tr>` : "";
+    }
     case "social_links":
-      return renderSocialLinks(block.links);
+      return renderSocialLinks(block, context);
     case "cta_button":
-      return renderCta(block.label, block.url);
+      return renderCta(block, context);
     case "campaign_banner":
-      return renderCampaign(block.campaignId, context);
+      return renderCampaign(block, context);
     case "legal_disclaimer":
-      return renderDisclaimer(block.text, context);
+      return renderDisclaimer(block, context);
     case "certifications":
-      return renderCertifications(block.items);
+      return renderCertifications(block, context);
     case "custom_text":
       return renderCustomText(block.text, context);
     case "spacer":

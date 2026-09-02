@@ -3,6 +3,7 @@
 @theme {
   --color-ink: #1c2b3a;
   --color-paper: #f6f4ef;
+  --color-wash: #efece4;
   --color-seal: #a63d2f;
   --color-lead: #5b6472;
   --color-rule: #d8d3c7;
@@ -71,12 +72,46 @@ body {
   display: none;
 }
 
+.sig-library-fn {
+  overflow: hidden;
+  transition:
+    opacity 0.4s ease,
+    max-height 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    margin 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sig-library-fn-closed {
+  max-height: 0;
+  margin-bottom: 0;
+  opacity: 0;
+}
+
+.sig-library-fn-open {
+  max-height: 3.5rem;
+  margin-bottom: 1.5rem;
+  opacity: 1;
+}
+
+.sig-library-window {
+  overflow: hidden;
+  border-radius: 8px;
+  transition: max-height 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sig-library-window-closed {
+  max-height: 0;
+}
+
+.sig-library-window-open {
+  max-height: 32rem;
+}
+
 @media (hover: hover) and (pointer: fine) and (min-width: 768px) {
   .sig-library {
     display: grid;
     align-items: start;
     gap: 0.75rem;
-    transition: grid-template-columns 0.4s ease;
+    transition: grid-template-columns 0.65s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .sig-library-strip + .sig-library-strip {
@@ -90,10 +125,16 @@ body {
   .sig-library-label {
     display: block;
   }
+
+  .sig-library-window-closed {
+    max-height: 2.35rem;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sig-library {
+  .sig-library,
+  .sig-library-fn,
+  .sig-library-window {
     transition: none;
   }
 }

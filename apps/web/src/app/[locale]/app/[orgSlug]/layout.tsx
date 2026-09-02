@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
+import { isAuthBypassed } from "@/lib/auth-bypass";
 
 export default async function OrgAppLayout({
   children,
@@ -23,7 +24,12 @@ export default async function OrgAppLayout({
   }
 
   return (
-    <AppShell locale={locale} orgSlug={session.orgSlug} orgName={session.orgName ?? ""}>
+    <AppShell
+      locale={locale}
+      orgSlug={session.orgSlug}
+      orgName={session.orgName ?? ""}
+      hideSignOut={isAuthBypassed()}
+    >
       {children}
     </AppShell>
   );

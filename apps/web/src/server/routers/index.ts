@@ -3,16 +3,47 @@ import { compile } from "@signatureops/compiler";
 import { lintHtml } from "@signatureops/linter";
 import { simulate } from "@signatureops/rules";
 import {
+  collectTemplateAssetIds,
   parseTemplateDefinition,
   RuleDefinitionSchema,
+  TemplateDefinitionInputSchema,
   TemplateDefinitionSchema,
   type RuleDefinition,
   type TemplateDefinition,
 } from "@signatureops/schema";
-import { onboardingProcedure, protectedProcedure, publicProcedure, router } from "../trpc";
-import { toCompileAssetMap, type AssetRecord } from "../lib/assets";
+import { onboardingProcedure, protectedProcedure, publicProcedure, router, type TRPCContext } from "../trpc";
+import { type AssetRecord } from "../lib/assets";
 import { resolvePublicAssetUrl } from "@/lib/asset-url";
+import {
+  buildCompileContext,
+  hasLegalDisclaimerText,
+  logoResolved,
+} from "../lib/compile-context";
 import { isReservedSlug, SlugSchema, slugify } from "@/lib/slug";
+import { isPersonTitleComplete } from "@/lib/onboarding";
+import {
+  optionalText,
+  validateImportRows,
+  type MappedPersonRow,
+} from "@/lib/directory-import";
+import {
+  CampaignInputSchema,
+  CampaignUpdateSchema,
+  campaignStatus,
+  findActiveCampaignForTemplate,
+  fromCampaignDate,
+  overlappingCampaign,
+  parseTemplateIds,
+  toCampaignDate,
+} from "@signatureops/schema";
+import {
+  BrandColorsSchema,
+  SocialIconModeSchema,
+  isUniqueSlot,
+  kindForSlot,
+  parseBrandColors,
+  type IdentitySlot,
+} from "@/lib/identity";
 import { TRPCError } from "@trpc/server";
 
 function parseJson<T>(value: string): T {
@@ -52,8 +83,25 @@ function getBaseUrl() {
   return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 }
 
+function assetIdsInTemplate(definition: string): string[] {
+  try {
+    return collectTemplateAssetIds(parseTemplateDefinition(parseJson(definition)));
+  } catch {
+    return [];
+  }
+}
+
 function buildCampaignMap(
-  campaigns: { id: string; bannerAssetId: string }[],
+  campaigns: {
+    id: string;
+    bannerAssetId: string;
+    slogan?: string | null;
+    ctaText?: string | null;
+    ctaLink?: string | null;
+    logoOverrideAssetId?: string | null;
+    startDate: Date;
+    endDate: Date;
+  }[],
   assets: AssetRecord[],
   definition?: TemplateDefinition,
 ) {
@@ -63,6 +111,7 @@ function buildCampaignMap(
   const map = Object.fromEntries(
     campaigns.map((c) => {
       const banner = bannerAssets.find((a) => a.id === c.bannerAssetId);
+      const status = campaignStatus(fromCampaignDate(c.startDate), fromCampaignDate(c.endDate));
       return [
         c.id,
         {
@@ -70,6 +119,13 @@ function buildCampaignMap(
           bannerUrl: banner ? resolvePublicAssetUrl(banner.url, baseUrl) : "",
           width: banner?.width ?? undefined,
           height: banner?.height ?? undefined,
+          slogan: c.slogan?.trim() || undefined,
+          ctaOverride:
+            c.ctaText?.trim() && c.ctaLink?.trim()
+              ? { text: c.ctaText.trim(), link: c.ctaLink.trim() }
+              : undefined,
+          logoOverrideAssetId: c.logoOverrideAssetId || undefined,
+          active: status === "active",
         },
       ];
     }),
@@ -77,18 +133,22 @@ function buildCampaignMap(
 
   if (definition) {
     for (const block of definition.blocks) {
-      if (block.type === "campaign_banner" && block.campaignId.startsWith("asset:")) {
-        const assetId = block.campaignId.slice(6);
-        const asset = assets.find((a) => a.id === assetId);
-        if (asset) {
-          map[block.campaignId] = {
-            id: block.campaignId,
-            bannerUrl: resolvePublicAssetUrl(asset.url, baseUrl),
-            width: asset.width ?? undefined,
-            height: asset.height ?? undefined,
-          };
-        }
-      }
+      if (block.type !== "campaign_banner") continue;
+      const prefixed = block.campaignId.startsWith("asset:") ? block.campaignId.slice(6) : "";
+      const assetId = block.assetId || prefixed;
+      if (!assetId) continue;
+      const asset = assets.find((a) => a.id === assetId);
+      if (!asset) continue;
+      map[block.campaignId || assetId] = {
+        id: block.campaignId || assetId,
+        bannerUrl: resolvePublicAssetUrl(asset.url, baseUrl),
+        width: asset.width ?? undefined,
+        height: asset.height ?? undefined,
+        slogan: undefined,
+        ctaOverride: undefined,
+        logoOverrideAssetId: undefined,
+        active: true,
+      };
     }
   }
 
@@ -113,7 +173,89 @@ export const orgRouter = router({
     });
     return org;
   }),
+  dashboard: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = await getOrgId(ctx);
+    const [org, logoCount, people] = await Promise.all([
+      ctx.prisma.organization.findUnique({
+        where: { id: orgId },
+        select: {
+          onboardingSkipCampaign: true,
+          _count: { select: { templates: true, users: true, campaigns: true } },
+        },
+      }),
+      ctx.prisma.brandAsset.count({ where: { orgId, kind: "LOGO" } }),
+      ctx.prisma.user.findMany({ where: { orgId }, select: { jobTitle: true } }),
+    ]);
+    if (!org) throw new TRPCError({ code: "NOT_FOUND" });
+
+    return {
+      templateCount: org._count.templates,
+      userCount: org._count.users,
+      hasLogo: logoCount > 0,
+      hasPersonWithTitle: people.some((person) => isPersonTitleComplete(person.jobTitle)),
+      hasCampaign: org._count.campaigns > 0,
+      hasTemplate: org._count.templates > 0,
+      skipCampaign: org.onboardingSkipCampaign,
+    };
+  }),
+  skipCampaignOnboarding: protectedProcedure.mutation(async ({ ctx }) => {
+    const orgId = await getOrgId(ctx);
+    await ctx.prisma.organization.update({
+      where: { id: orgId },
+      data: { onboardingSkipCampaign: true },
+    });
+    return { skipCampaign: true };
+  }),
 });
+
+const PersonFieldsSchema = z.object({
+  displayName: z.string().trim().min(1),
+  jobTitle: z.string().trim().min(1),
+  email: z.string().trim().email(),
+  mobile: z.string().trim().optional().nullable(),
+  department: z.string().trim().optional().nullable(),
+  country: z.string().trim().optional().nullable(),
+  photoUrl: z.string().trim().optional().nullable(),
+});
+
+const ImportRowSchema = z.object({
+  rowNumber: z.number().int().positive(),
+  displayName: z.string(),
+  jobTitle: z.string(),
+  email: z.string(),
+  mobile: z.string().optional(),
+  department: z.string().optional(),
+  country: z.string().optional(),
+  photoUrl: z.string().optional(),
+});
+
+function emptyToNull(value: string | null | undefined): string | null {
+  return optionalText(value);
+}
+
+function assertPersonPhotoUrl(url: string | null) {
+  if (!url) return;
+  if (!url.startsWith("https://") && !url.startsWith("http://") && !url.startsWith("/")) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Fotoğraf URL'si https://, http:// veya / ile başlamalı",
+    });
+  }
+}
+
+async function findUserByEmail(
+  prisma: TRPCContext["prisma"],
+  orgId: string,
+  email: string,
+  excludeId?: string,
+) {
+  const needle = email.trim().toLowerCase();
+  const users = await prisma.user.findMany({
+    where: { orgId, ...(excludeId ? { id: { not: excludeId } } : {}) },
+    select: { id: true, email: true },
+  });
+  return users.find((user) => user.email.toLowerCase() === needle) ?? null;
+}
 
 export const usersRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -128,6 +270,127 @@ export const usersRouter = router({
     .query(async ({ ctx, input }) => {
       const orgId = await getOrgId(ctx);
       return ctx.prisma.user.findFirst({ where: { id: input.id, orgId } });
+    }),
+  create: protectedProcedure.input(PersonFieldsSchema).mutation(async ({ ctx, input }) => {
+    const orgId = await getOrgId(ctx);
+    const photoUrl = emptyToNull(input.photoUrl);
+    assertPersonPhotoUrl(photoUrl);
+    const taken = await findUserByEmail(ctx.prisma, orgId, input.email);
+    if (taken) {
+      throw new TRPCError({ code: "CONFLICT", message: "EMAIL_TAKEN" });
+    }
+    const email = input.email.trim();
+    return ctx.prisma.user.create({
+      data: {
+        orgId,
+        externalId: `dir:${email.toLowerCase()}`,
+        displayName: input.displayName.trim(),
+        jobTitle: input.jobTitle.trim(),
+        email,
+        mobile: emptyToNull(input.mobile),
+        department: emptyToNull(input.department),
+        country: emptyToNull(input.country),
+        photoUrl,
+        sendAsAliases: JSON.stringify([email]),
+        attributes: "{}",
+      },
+    });
+  }),
+  update: protectedProcedure
+    .input(PersonFieldsSchema.extend({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await getOrgId(ctx);
+      const existing = await ctx.prisma.user.findFirst({ where: { id: input.id, orgId } });
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Person not found" });
+      }
+      const photoUrl = emptyToNull(input.photoUrl);
+      assertPersonPhotoUrl(photoUrl);
+      const taken = await findUserByEmail(ctx.prisma, orgId, input.email, input.id);
+      if (taken) {
+        throw new TRPCError({ code: "CONFLICT", message: "EMAIL_TAKEN" });
+      }
+      return ctx.prisma.user.update({
+        where: { id: input.id },
+        data: {
+          displayName: input.displayName.trim(),
+          jobTitle: input.jobTitle.trim(),
+          email: input.email.trim(),
+          mobile: emptyToNull(input.mobile),
+          department: emptyToNull(input.department),
+          country: emptyToNull(input.country),
+          photoUrl,
+        },
+      });
+    }),
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await getOrgId(ctx);
+      const existing = await ctx.prisma.user.findFirst({ where: { id: input.id, orgId } });
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Person not found" });
+      }
+      await ctx.prisma.user.delete({ where: { id: input.id } });
+      return { ok: true };
+    }),
+  importRows: protectedProcedure
+    .input(z.object({ rows: z.array(ImportRowSchema).max(5000) }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await getOrgId(ctx);
+      const existing = await ctx.prisma.user.findMany({
+        where: { orgId },
+        select: { id: true, email: true },
+      });
+      const preview = validateImportRows(input.rows as MappedPersonRow[], existing.map((u) => u.email));
+      const byEmail = new Map(existing.map((u) => [u.email.toLowerCase(), u.id]));
+      let created = 0;
+      let updated = 0;
+
+      for (const row of preview.valid) {
+        const photoUrl = row.photoUrl !== undefined ? emptyToNull(row.photoUrl) : undefined;
+        if (photoUrl) assertPersonPhotoUrl(photoUrl);
+        const email = row.email.trim();
+        const data = {
+          displayName: row.displayName.trim(),
+          jobTitle: row.jobTitle.trim(),
+          email,
+          ...(row.mobile !== undefined ? { mobile: emptyToNull(row.mobile) } : {}),
+          ...(row.department !== undefined ? { department: emptyToNull(row.department) } : {}),
+          ...(row.country !== undefined ? { country: emptyToNull(row.country) } : {}),
+          ...(row.photoUrl !== undefined ? { photoUrl } : {}),
+        };
+
+        if (row.action === "update") {
+          const id = byEmail.get(email.toLowerCase());
+          if (!id) continue;
+          await ctx.prisma.user.update({ where: { id }, data });
+          updated += 1;
+        } else {
+          const createdUser = await ctx.prisma.user.create({
+            data: {
+              orgId,
+              externalId: `dir:${email.toLowerCase()}`,
+              sendAsAliases: JSON.stringify([email]),
+              attributes: "{}",
+              ...data,
+              photoUrl: photoUrl ?? null,
+              mobile: data.mobile ?? null,
+              department: data.department ?? null,
+              country: data.country ?? null,
+            },
+          });
+          byEmail.set(email.toLowerCase(), createdUser.id);
+          created += 1;
+        }
+      }
+
+      return {
+        created,
+        updated,
+        failed: preview.errors.length,
+        errors: preview.errors,
+      };
     }),
 });
 
@@ -149,7 +412,7 @@ export const templatesRouter = router({
     .input(
       z.object({
         name: z.string().min(1),
-        definition: TemplateDefinitionSchema,
+        definition: TemplateDefinitionInputSchema,
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -168,7 +431,7 @@ export const templatesRouter = router({
       z.object({
         id: z.string(),
         name: z.string().min(1).optional(),
-        definition: TemplateDefinitionSchema.optional(),
+        definition: TemplateDefinitionInputSchema.optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -200,8 +463,9 @@ export const templatesRouter = router({
   compilePreview: protectedProcedure
     .input(
       z.object({
-        definition: TemplateDefinitionSchema,
+        definition: TemplateDefinitionInputSchema,
         userId: z.string(),
+        templateId: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -215,33 +479,37 @@ export const templatesRouter = router({
 
       if (!user || !org) throw new Error("User or org not found");
 
-      const assetMap = toCompileAssetMap(assets as AssetRecord[], getBaseUrl());
       const campaignMap = buildCampaignMap(campaigns, assets as AssetRecord[], input.definition);
-
-      const compiled = compile(
-        input.definition,
-        {
+      const active = findActiveCampaignForTemplate(campaigns, input.templateId);
+      const fallbackPhoto = assets.find((asset) => asset.slot === "profile_fallback");
+      const compileContext = buildCompileContext({
+        user: {
           user: {
-            user: {
-              displayName: user.displayName,
-              jobTitle: user.jobTitle ?? undefined,
-              department: user.department ?? undefined,
-              country: user.country ?? undefined,
-              email: user.email,
-              mobile: user.mobile ?? undefined,
-              officePhone: user.officePhone ?? undefined,
-              photoUrl: user.photoUrl ?? undefined,
-            },
-            organization: { name: org.name },
+            displayName: user.displayName,
+            jobTitle: user.jobTitle ?? undefined,
+            department: user.department ?? undefined,
+            country: user.country ?? undefined,
+            email: user.email,
+            mobile: user.mobile ?? undefined,
+            officePhone: user.officePhone ?? undefined,
+            photoUrl: user.photoUrl ?? undefined,
           },
-          assets: assetMap,
-          campaigns: campaignMap,
+          organization: { name: org.name },
         },
-      );
+        assets: assets as AssetRecord[],
+        campaigns: campaignMap,
+        org,
+        fallbackPhotoUrl: fallbackPhoto?.url,
+        baseUrl: getBaseUrl(),
+        activeCampaignId: active?.id,
+      });
 
+      const compiled = compile(input.definition, compileContext);
+      const approvedLogoFound = logoResolved(input.definition, compileContext);
       const linted = lintHtml(compiled.html, {
-        approvedLogoAssetId: "asset-logo",
         requiredDisclaimer: true,
+        hasLegalDisclaimerText: hasLegalDisclaimerText(input.definition),
+        ...(approvedLogoFound === undefined ? {} : { approvedLogoFound }),
       });
 
       return { ...compiled, lint: linted };
@@ -300,16 +568,28 @@ export const rulesRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
+      const orgId = await getOrgId(ctx);
+      const existing = await ctx.prisma.rule.findFirst({ where: { id: input.id, orgId } });
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+      const next = {
+        id: existing.id,
+        name: input.name ?? existing.name,
+        level: input.level ?? existing.level,
+        priority: input.priority ?? existing.priority,
+        conditions: input.conditions ?? parseJson(existing.conditions),
+        actions: input.actions ?? parseJson(existing.actions),
+        enabled: input.enabled ?? existing.enabled,
+      };
+      RuleDefinitionSchema.parse(next);
       return ctx.prisma.rule.update({
-        where: { id },
+        where: { id: input.id },
         data: {
-          ...(data.name && { name: data.name }),
-          ...(data.level && { level: data.level }),
-          ...(data.priority !== undefined && { priority: data.priority }),
-          ...(data.conditions && { conditions: JSON.stringify(data.conditions) }),
-          ...(data.actions && { actions: JSON.stringify(data.actions) }),
-          ...(data.enabled !== undefined && { enabled: data.enabled }),
+          name: next.name,
+          level: next.level,
+          priority: next.priority,
+          conditions: JSON.stringify(next.conditions),
+          actions: JSON.stringify(next.actions),
+          enabled: next.enabled,
         },
       });
     }),
@@ -328,33 +608,306 @@ export const rulesRouter = router({
     }),
 });
 
-export const campaignsRouter = router({
+export const groupsRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     const orgId = await getOrgId(ctx);
-    return ctx.prisma.campaign.findMany({
+    return ctx.prisma.group.findMany({
       where: { orgId },
-      orderBy: { startDate: "desc" },
+      orderBy: { name: "asc" },
     });
   }),
 });
 
+function presentCampaign(campaign: {
+  id: string;
+  orgId: string;
+  name: string;
+  bannerAssetId: string;
+  startDate: Date;
+  endDate: Date;
+  slogan: string | null;
+  ctaText: string | null;
+  ctaLink: string | null;
+  logoOverrideAssetId: string | null;
+  templateIds: string;
+  targeting: string;
+}) {
+  const startDate = fromCampaignDate(campaign.startDate);
+  const endDate = fromCampaignDate(campaign.endDate);
+  return {
+    id: campaign.id,
+    orgId: campaign.orgId,
+    name: campaign.name,
+    bannerAssetId: campaign.bannerAssetId,
+    startDate,
+    endDate,
+    slogan: campaign.slogan,
+    logoOverrideAssetId: campaign.logoOverrideAssetId,
+    templateIds: parseTemplateIds(campaign.templateIds),
+    ctaOverride:
+      campaign.ctaText?.trim() && campaign.ctaLink?.trim()
+        ? { text: campaign.ctaText.trim(), link: campaign.ctaLink.trim() }
+        : null,
+    status: campaignStatus(startDate, endDate),
+  };
+}
+
+function campaignWriteData(input: {
+  name: string;
+  startDate: string;
+  endDate: string;
+  bannerAssetId: string;
+  slogan?: string;
+  ctaOverride?: { text: string; link: string };
+  logoOverrideAssetId?: string;
+  templateIds: string[];
+}) {
+  return {
+    name: input.name.trim(),
+    bannerAssetId: input.bannerAssetId,
+    startDate: toCampaignDate(input.startDate),
+    endDate: toCampaignDate(input.endDate),
+    slogan: input.slogan?.trim() || null,
+    ctaText: input.ctaOverride?.text.trim() || null,
+    ctaLink: input.ctaOverride?.link.trim() || null,
+    logoOverrideAssetId: input.logoOverrideAssetId || null,
+    templateIds: JSON.stringify(input.templateIds),
+  };
+}
+
+export const campaignsRouter = router({
+  list: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = await getOrgId(ctx);
+    const campaigns = await ctx.prisma.campaign.findMany({
+      where: { orgId },
+      orderBy: { startDate: "desc" },
+    });
+    return campaigns.map(presentCampaign);
+  }),
+  create: protectedProcedure.input(CampaignInputSchema).mutation(async ({ ctx, input }) => {
+    const orgId = await getOrgId(ctx);
+    await assertCampaignAssets(ctx.prisma, orgId, input);
+    const existing = await ctx.prisma.campaign.findMany({ where: { orgId } });
+    const conflict = overlappingCampaign(existing, input.templateIds, input.startDate, input.endDate);
+    if (conflict) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: "TEMPLATE_OVERLAP",
+      });
+    }
+    const created = await ctx.prisma.campaign.create({
+      data: { orgId, ...campaignWriteData(input) },
+    });
+    return presentCampaign(created);
+  }),
+  update: protectedProcedure
+    .input(CampaignUpdateSchema)
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await getOrgId(ctx);
+      const existingRow = await ctx.prisma.campaign.findFirst({ where: { id: input.id, orgId } });
+      if (!existingRow) throw new TRPCError({ code: "NOT_FOUND", message: "Campaign not found" });
+      await assertCampaignAssets(ctx.prisma, orgId, input);
+      const existing = await ctx.prisma.campaign.findMany({ where: { orgId } });
+      const conflict = overlappingCampaign(
+        existing,
+        input.templateIds,
+        input.startDate,
+        input.endDate,
+        input.id,
+      );
+      if (conflict) {
+        throw new TRPCError({ code: "CONFLICT", message: "TEMPLATE_OVERLAP" });
+      }
+      const updated = await ctx.prisma.campaign.update({
+        where: { id: input.id },
+        data: campaignWriteData(input),
+      });
+      return presentCampaign(updated);
+    }),
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await getOrgId(ctx);
+      const existing = await ctx.prisma.campaign.findFirst({ where: { id: input.id, orgId } });
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Campaign not found" });
+      await ctx.prisma.campaign.delete({ where: { id: input.id } });
+      return { ok: true };
+    }),
+});
+
+async function assertCampaignAssets(
+  prisma: TRPCContext["prisma"],
+  orgId: string,
+  input: z.infer<typeof CampaignInputSchema>,
+) {
+  const banner = await prisma.brandAsset.findFirst({ where: { id: input.bannerAssetId, orgId } });
+  if (!banner || (banner.kind !== "BANNER" && banner.slot !== "banner")) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Banner asset not found" });
+  }
+  if (input.logoOverrideAssetId) {
+    const logo = await prisma.brandAsset.findFirst({
+      where: { id: input.logoOverrideAssetId, orgId },
+    });
+    if (!logo || (logo.kind !== "LOGO" && !logo.slot?.startsWith("logo"))) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Logo asset not found" });
+    }
+  }
+}
+
+const AssetKindSchema = z.enum(["LOGO", "BANNER", "CERTIFICATION", "PHOTO", "ICON"]);
+const IdentitySlotSchema = z.enum([
+  "logo",
+  "logo_light",
+  "logo_dark",
+  "logo_mark",
+  "banner",
+  "certification",
+  "profile_fallback",
+  "cta_icon",
+  "legal_badge",
+  "social_linkedin",
+  "social_x",
+  "social_instagram",
+  "social_facebook",
+  "social_youtube",
+]);
+
+async function ensureIdentitySlots(
+  prisma: TRPCContext["prisma"],
+  orgId: string,
+) {
+  const assets = await prisma.brandAsset.findMany({ where: { orgId } });
+  const slotted = new Set(assets.map((asset) => asset.slot).filter(Boolean));
+  if (!slotted.has("logo")) {
+    const logo = assets.find((asset) => asset.kind === "LOGO" && !asset.slot);
+    if (logo) {
+      await prisma.brandAsset.update({ where: { id: logo.id }, data: { slot: "logo" } });
+    }
+  }
+  if (!slotted.has("banner")) {
+    const banner = assets.find((asset) => asset.kind === "BANNER" && !asset.slot);
+    if (banner) {
+      await prisma.brandAsset.update({ where: { id: banner.id }, data: { slot: "banner" } });
+    }
+  }
+}
+
+function assertAssetUrl(url: string) {
+  if (!url.startsWith("https://") && !url.startsWith("http://") && !url.startsWith("/")) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "URL https://, http:// veya /uploads/ ile başlamalı",
+    });
+  }
+}
+
+export const identityRouter = router({
+  get: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = await getOrgId(ctx);
+    await ensureIdentitySlots(ctx.prisma, orgId);
+    const [org, assets, templates, campaigns] = await Promise.all([
+      ctx.prisma.organization.findUnique({ where: { id: orgId } }),
+      ctx.prisma.brandAsset.findMany({ where: { orgId }, orderBy: { createdAt: "desc" } }),
+      ctx.prisma.template.findMany({
+        where: { orgId },
+        select: { id: true, name: true, definition: true },
+      }),
+      ctx.prisma.campaign.findMany({
+        where: { orgId },
+        select: { id: true, name: true, bannerAssetId: true, logoOverrideAssetId: true },
+      }),
+    ]);
+    if (!org) throw new TRPCError({ code: "NOT_FOUND" });
+
+    const withUsage = assets.map((asset) => ({
+      ...asset,
+      usedIn: {
+        templates: templates
+          .filter((tpl) => assetIdsInTemplate(tpl.definition).includes(asset.id))
+          .map(({ id, name }) => ({ id, name })),
+        campaigns: campaigns
+          .filter(
+            (campaign) =>
+              campaign.bannerAssetId === asset.id || campaign.logoOverrideAssetId === asset.id,
+          )
+          .map(({ id, name }) => ({ id, name })),
+      },
+    }));
+
+    const slots = Object.fromEntries(
+      withUsage.filter((asset) => asset.slot && isUniqueSlot(asset.slot)).map((asset) => [asset.slot, asset]),
+    );
+
+    return {
+      colors: parseBrandColors(org.brandColors),
+      socialIconMode: SocialIconModeSchema.catch("standard").parse(org.socialIconMode),
+      slots,
+      certifications: withUsage.filter((asset) => asset.slot === "certification"),
+    };
+  }),
+  setColors: protectedProcedure.input(BrandColorsSchema).mutation(async ({ ctx, input }) => {
+    const orgId = await getOrgId(ctx);
+    await ctx.prisma.organization.update({
+      where: { id: orgId },
+      data: { brandColors: JSON.stringify(input) },
+    });
+    return input;
+  }),
+  setSocialIconMode: protectedProcedure
+    .input(z.object({ mode: SocialIconModeSchema }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await getOrgId(ctx);
+      await ctx.prisma.organization.update({
+        where: { id: orgId },
+        data: { socialIconMode: input.mode },
+      });
+      return input.mode;
+    }),
+});
+
 export const assetsRouter = router({
   list: protectedProcedure
-    .input(z.object({ kind: z.enum(["LOGO", "BANNER", "CERTIFICATION", "PHOTO"]).optional() }).optional())
+    .input(z.object({ kind: AssetKindSchema.optional() }).optional())
     .query(async ({ ctx, input }) => {
       const orgId = await getOrgId(ctx);
-      return ctx.prisma.brandAsset.findMany({
-        where: {
-          orgId,
-          ...(input?.kind ? { kind: input.kind } : {}),
+      const [assets, templates, campaigns] = await Promise.all([
+        ctx.prisma.brandAsset.findMany({
+          where: {
+            orgId,
+            ...(input?.kind ? { kind: input.kind } : {}),
+          },
+          orderBy: { createdAt: "desc" },
+        }),
+        ctx.prisma.template.findMany({
+          where: { orgId },
+          select: { id: true, name: true, definition: true },
+        }),
+        ctx.prisma.campaign.findMany({
+          where: { orgId },
+          select: { id: true, name: true, bannerAssetId: true, logoOverrideAssetId: true },
+        }),
+      ]);
+
+      return assets.map((asset) => ({
+        ...asset,
+        usedIn: {
+          templates: templates
+            .filter((tpl) => assetIdsInTemplate(tpl.definition).includes(asset.id))
+            .map(({ id, name }) => ({ id, name })),
+          campaigns: campaigns
+            .filter(
+              (campaign) =>
+                campaign.bannerAssetId === asset.id || campaign.logoOverrideAssetId === asset.id,
+            )
+            .map(({ id, name }) => ({ id, name })),
         },
-        orderBy: { id: "desc" },
-      });
+      }));
     }),
   create: protectedProcedure
     .input(
       z.object({
-        kind: z.enum(["LOGO", "BANNER", "CERTIFICATION", "PHOTO"]),
+        kind: AssetKindSchema,
+        slot: IdentitySlotSchema.optional(),
         url: z.string().min(1),
         bytes: z.number().int().optional(),
         width: z.number().int().positive().optional(),
@@ -364,18 +917,83 @@ export const assetsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const orgId = await getOrgId(ctx);
-      if (!input.url.startsWith("https://") && !input.url.startsWith("http://") && !input.url.startsWith("/")) {
-        throw new Error("URL https://, http:// veya /uploads/ ile başlamalı");
-      }
+      assertAssetUrl(input.url);
       return ctx.prisma.brandAsset.create({
         data: {
           orgId,
           kind: input.kind,
+          slot: input.slot,
           url: input.url,
           bytes: input.bytes ?? 0,
           width: input.width,
           height: input.height,
           alt: input.alt,
+        },
+      });
+    }),
+  upsertSlot: protectedProcedure
+    .input(
+      z.object({
+        slot: IdentitySlotSchema,
+        url: z.string().min(1),
+        bytes: z.number().int().optional(),
+        width: z.number().int().positive().optional(),
+        height: z.number().int().positive().optional(),
+        alt: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await getOrgId(ctx);
+      assertAssetUrl(input.url);
+      const kind = kindForSlot(input.slot as IdentitySlot);
+      const data = {
+        kind,
+        url: input.url,
+        bytes: input.bytes ?? 0,
+        width: input.width,
+        height: input.height,
+        alt: input.alt,
+        slot: input.slot,
+      };
+
+      if (input.slot === "certification" || !isUniqueSlot(input.slot)) {
+        return ctx.prisma.brandAsset.create({ data: { ...data, orgId } });
+      }
+
+      const existing = await ctx.prisma.brandAsset.findFirst({
+        where: { orgId, slot: input.slot },
+      });
+      if (existing) {
+        return ctx.prisma.brandAsset.update({
+          where: { id: existing.id },
+          data,
+        });
+      }
+      return ctx.prisma.brandAsset.create({ data: { ...data, orgId } });
+    }),
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        kind: AssetKindSchema.optional(),
+        alt: z.string().optional(),
+        width: z.number().int().positive().nullable().optional(),
+        height: z.number().int().positive().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await getOrgId(ctx);
+      const asset = await ctx.prisma.brandAsset.findFirst({
+        where: { id: input.id, orgId },
+      });
+      if (!asset) throw new TRPCError({ code: "NOT_FOUND", message: "Asset not found" });
+      return ctx.prisma.brandAsset.update({
+        where: { id: input.id },
+        data: {
+          ...(input.kind ? { kind: input.kind } : {}),
+          ...(input.alt !== undefined ? { alt: input.alt || null } : {}),
+          ...(input.width !== undefined ? { width: input.width } : {}),
+          ...(input.height !== undefined ? { height: input.height } : {}),
         },
       });
     }),
@@ -386,7 +1004,7 @@ export const assetsRouter = router({
       const asset = await ctx.prisma.brandAsset.findFirst({
         where: { id: input.id, orgId },
       });
-      if (!asset) throw new Error("Asset not found");
+      if (!asset) throw new TRPCError({ code: "NOT_FOUND", message: "Asset not found" });
       return ctx.prisma.brandAsset.delete({ where: { id: input.id } });
     }),
 });
@@ -423,8 +1041,34 @@ export const simulateRouter = router({
         templates.map((t) => [t.id, toTemplateDefinition(t.definition)]),
       );
 
-      const assetMap = toCompileAssetMap(assets as AssetRecord[], getBaseUrl());
       const campaignMap = buildCampaignMap(campaigns, assets as AssetRecord[]);
+      const fallbackPhoto = assets.find((asset) => asset.slot === "profile_fallback");
+      const activeCampaignIdForTemplate = Object.fromEntries(
+        templates.flatMap((template) => {
+          const active = findActiveCampaignForTemplate(campaigns, template.id);
+          return active ? [[template.id, active.id] as const] : [];
+        }),
+      );
+      const compileContext = buildCompileContext({
+        user: {
+          user: {
+            displayName: user.displayName,
+            jobTitle: user.jobTitle ?? undefined,
+            department: user.department ?? undefined,
+            country: user.country ?? undefined,
+            email: user.email,
+            mobile: user.mobile ?? undefined,
+            officePhone: user.officePhone ?? undefined,
+            photoUrl: user.photoUrl ?? undefined,
+          },
+          organization: { name: org.name },
+        },
+        assets: assets as AssetRecord[],
+        campaigns: campaignMap,
+        org,
+        fallbackPhotoUrl: fallbackPhoto?.url,
+        baseUrl: getBaseUrl(),
+      });
 
       const aliases = parseJson<string[]>(user.sendAsAliases);
 
@@ -444,36 +1088,22 @@ export const simulateRouter = router({
           messageType: input.messageType,
           recipientType: input.recipientType,
           at: new Date(),
+          activeCampaignIds: campaigns
+            .filter(
+              (campaign) =>
+                campaignStatus(fromCampaignDate(campaign.startDate), fromCampaignDate(campaign.endDate)) ===
+                "active",
+            )
+            .map((campaign) => campaign.id),
         },
         rules: rules.map(toRuleDefinition),
         defaultTemplateId: templates[0]?.id,
         templates: templateMap,
-        compileContext: {
-          user: {
-            user: {
-              displayName: user.displayName,
-              jobTitle: user.jobTitle ?? undefined,
-              department: user.department ?? undefined,
-              country: user.country ?? undefined,
-              email: user.email,
-              mobile: user.mobile ?? undefined,
-              officePhone: user.officePhone ?? undefined,
-              photoUrl: user.photoUrl ?? undefined,
-            },
-            organization: { name: org.name },
-          },
-          assets: assetMap,
-          campaigns: campaignMap,
-        },
-        lintOptions: { approvedLogoAssetId: "asset-logo", requiredDisclaimer: true },
+        compileContext,
+        activeCampaignIdForTemplate,
+        lintOptions: { requiredDisclaimer: true },
       });
     }),
-});
-
-export const lintRouter = router({
-  lintHtml: publicProcedure
-    .input(z.object({ html: z.string() }))
-    .query(({ input }) => lintHtml(input.html)),
 });
 
 export const authRouter = router({
@@ -526,12 +1156,13 @@ export const appRouter = router({
   auth: authRouter,
   org: orgRouter,
   users: usersRouter,
+  groups: groupsRouter,
   templates: templatesRouter,
   rules: rulesRouter,
   campaigns: campaignsRouter,
   assets: assetsRouter,
+  identity: identityRouter,
   simulate: simulateRouter,
-  lint: lintRouter,
 });
 
 export type AppRouter = typeof appRouter;

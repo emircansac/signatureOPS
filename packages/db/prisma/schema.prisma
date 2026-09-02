@@ -25,6 +25,7 @@ enum AssetKind {
   BANNER
   CERTIFICATION
   PHOTO
+  ICON
 }
 
 enum DeployStatus {
@@ -40,11 +41,14 @@ enum AdminRole {
 }
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  provider  Provider @default(BOTH)
-  createdAt DateTime @default(now())
+  id                      String   @id @default(cuid())
+  name                    String
+  slug                    String   @unique
+  provider                Provider @default(BOTH)
+  brandColors             String   @default("[]")
+  socialIconMode          String   @default("standard")
+  onboardingSkipCampaign  Boolean  @default(false)
+  createdAt               DateTime @default(now())
 
   users       User[]
   groups      Group[]
@@ -129,26 +133,35 @@ model Rule {
 }
 
 model Campaign {
-  id            String   @id @default(cuid())
-  orgId         String
-  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  name          String
-  bannerAssetId String
-  startDate     DateTime
-  endDate       DateTime
-  targeting     String   @default("{}")
+  id                  String   @id @default(cuid())
+  orgId               String
+  org                 Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name                String
+  bannerAssetId       String
+  startDate           DateTime
+  endDate             DateTime
+  slogan              String?
+  ctaText             String?
+  ctaLink             String?
+  logoOverrideAssetId String?
+  templateIds         String   @default("[]")
+  targeting           String   @default("{}")
 }
 
 model BrandAsset {
-  id     String    @id @default(cuid())
-  orgId  String
-  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  kind   AssetKind
-  url    String
-  bytes  Int       @default(0)
-  width  Int?
-  height Int?
-  alt    String?
+  id        String    @id @default(cuid())
+  orgId     String
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  kind      AssetKind
+  slot      String?
+  url       String
+  bytes     Int       @default(0)
+  width     Int?
+  height    Int?
+  alt       String?
+  createdAt DateTime  @default(now())
+
+  @@index([orgId, slot])
 }
 
 model Deployment {

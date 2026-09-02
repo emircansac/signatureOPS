@@ -4,12 +4,14 @@ import type { ReactNode } from "react";
 export function Card({
   children,
   className,
+  id,
 }: {
   children: ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
-    <div className={cn("border border-rule bg-paper p-6", className)}>{children}</div>
+    <div id={id} className={cn("border border-rule bg-paper p-6", className)}>{children}</div>
   );
 }
 

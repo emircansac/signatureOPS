@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { TemplateDefinition, Block } from "@signatureops/schema";
 import { trpc } from "@/lib/trpc";
-import { AssetLibrary } from "@/components/asset-library";
 import { BlockConfig } from "@/components/block-config";
 import { EmailComposePreview } from "@/components/email-compose-preview";
 import { Badge, Button, Card, Input, Label, Select } from "@/components/ui";
@@ -24,26 +23,33 @@ const BLOCK_TYPES = [
   "divider",
 ] as const;
 
-function defaultBlock(type: (typeof BLOCK_TYPES)[number], logoAssetId?: string): Block {
+function defaultBlock(
+  type: (typeof BLOCK_TYPES)[number],
+  ids: { logo?: string; banner?: string },
+): Block {
   switch (type) {
     case "identity":
       return { type: "identity", fields: ["displayName", "jobTitle"] };
     case "contact_details":
       return { type: "contact_details", fields: ["email", "mobile"] };
     case "company_logo":
-      return { type: "company_logo", assetId: logoAssetId ?? "" };
+      return { type: "company_logo", assetId: ids.logo ?? "", logoVariant: "default" };
     case "profile_photo":
       return { type: "profile_photo" };
     case "social_links":
-      return { type: "social_links", links: [{ network: "LinkedIn", url: "https://linkedin.com" }] };
+      return {
+        type: "social_links",
+        platforms: ["linkedin"],
+        links: [{ network: "linkedin", url: "https://linkedin.com" }],
+      };
     case "cta_button":
-      return { type: "cta_button", label: "CTA", url: "https://example.com" };
+      return { type: "cta_button", label: "CTA", url: "https://example.com", assetId: "", colorAssetId: null };
     case "campaign_banner":
-      return { type: "campaign_banner", campaignId: "" };
+      return { type: "campaign_banner", campaignId: "", assetId: ids.banner ?? "" };
     case "legal_disclaimer":
-      return { type: "legal_disclaimer", text: "Confidential. {{organization.name}}" };
+      return { type: "legal_disclaimer", text: "Confidential. {{organization.name}}", assetId: "" };
     case "certifications":
-      return { type: "certifications", items: ["ISO 27001"] };
+      return { type: "certifications", assetIds: [] };
     case "custom_text":
       return { type: "custom_text", text: "Custom text" };
     case "spacer":
@@ -57,10 +63,12 @@ export function TemplateEditor({
   initial,
   onSave,
   saving,
+  templateId,
 }: {
   initial?: { name: string; definition: TemplateDefinition };
   onSave: (data: { name: string; definition: TemplateDefinition }) => void;
   saving?: boolean;
+  templateId?: string;
 }) {
   const t = useTranslations("templates");
   const tc = useTranslations("common");
@@ -75,19 +83,16 @@ export function TemplateEditor({
       ],
     },
   );
-  const [showAssets, setShowAssets] = useState(false);
   const [activeBlockIndex, setActiveBlockIndex] = useState<number | null>(null);
 
   const { data: users } = trpc.users.list.useQuery();
-  const { data: assets } = trpc.assets.list.useQuery(undefined);
+  const { data: identity } = trpc.identity.get.useQuery();
   const [previewUserId, setPreviewUserId] = useState<string>("");
   const [copied, setCopied] = useState(false);
 
-  const defaultLogoId = assets?.find((a) => a.kind === "LOGO")?.id;
-
   const { data: preview, refetch: refetchPreview } = trpc.templates.compilePreview.useQuery(
-    { definition, userId: previewUserId || users?.[0]?.id || "" },
-    { enabled: !!(previewUserId || users?.[0]?.id) },
+    { definition, userId: previewUserId || users?.[0]?.id || "", templateId },
+    { enabled: !!(previewUserId || users?.[0]?.id), staleTime: 0, refetchOnMount: "always" },
   );
 
   const copyHtml = async () => {
@@ -118,7 +123,13 @@ export function TemplateEditor({
     const newIndex = definition.blocks.length;
     setDefinition({
       ...definition,
-      blocks: [...definition.blocks, defaultBlock(type, defaultLogoId)],
+      blocks: [
+        ...definition.blocks,
+        defaultBlock(type, {
+          logo: identity?.slots.logo?.id,
+          banner: identity?.slots.banner?.id,
+        }),
+      ],
     });
     setActiveBlockIndex(newIndex);
   };
@@ -127,17 +138,6 @@ export function TemplateEditor({
     const blocks = [...definition.blocks];
     blocks[index] = block;
     setDefinition({ ...definition, blocks });
-  };
-
-  const handleAssetSelect = (assetId: string) => {
-    if (activeBlockIndex === null) return;
-    const block = definition.blocks[activeBlockIndex];
-    if (!block) return;
-
-    if (block.type === "company_logo") {
-      updateBlock(activeBlockIndex, { ...block, assetId });
-    }
-    setShowAssets(false);
   };
 
   return (
@@ -167,25 +167,20 @@ export function TemplateEditor({
           <div>
             <div className="mb-2 flex items-center justify-between">
               <Label>{t("blocks")}</Label>
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={() => setShowAssets(!showAssets)}>
-                  {showAssets ? t("hideImages") : t("manageImages")}
-                </Button>
-                <Select
-                  defaultValue=""
-                  onChange={(e) => {
-                    if (e.target.value) addBlock(e.target.value as (typeof BLOCK_TYPES)[number]);
-                    e.target.value = "";
-                  }}
-                >
-                  <option value="">{t("addBlock")}</option>
-                  {BLOCK_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {tb(type)}
-                    </option>
-                  ))}
-                </Select>
-              </div>
+              <Select
+                defaultValue=""
+                onChange={(e) => {
+                  if (e.target.value) addBlock(e.target.value as (typeof BLOCK_TYPES)[number]);
+                  e.target.value = "";
+                }}
+              >
+                <option value="">{t("addBlock")}</option>
+                {BLOCK_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {tb(type)}
+                  </option>
+                ))}
+              </Select>
             </div>
             <div className="space-y-2">
               {definition.blocks.map((block, index) => (
@@ -200,9 +195,6 @@ export function TemplateEditor({
                       onClick={() => setActiveBlockIndex(activeBlockIndex === index ? null : index)}
                     >
                       {tb(block.type)}
-                      {block.type === "company_logo" && "assetId" in block && block.assetId && (
-                        <span className="ml-2 text-xs text-lead">({block.assetId})</span>
-                      )}
                     </button>
                     <div className="flex gap-1">
                       <Button variant="ghost" onClick={() => moveBlock(index, -1)}>
@@ -276,18 +268,6 @@ export function TemplateEditor({
           )}
         </div>
       </div>
-
-      {showAssets && (
-        <AssetLibrary
-          onSelect={handleAssetSelect}
-          selectedId={
-            activeBlockIndex !== null &&
-            definition.blocks[activeBlockIndex]?.type === "company_logo"
-              ? (definition.blocks[activeBlockIndex] as { assetId: string }).assetId
-              : undefined
-          }
-        />
-      )}
     </div>
   );
 }

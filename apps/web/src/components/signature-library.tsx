@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
-  ComposeTitleBar,
   LandingComposeMockup,
   type MockupVariant,
 } from "@/components/landing-compose-mockup";
@@ -32,8 +31,8 @@ type Chrome = {
   email: string;
 };
 
-const CLOSED_COL = "12rem";
-const OPEN_COL = "minmax(0, 1fr)";
+const CLOSED_COL = "minmax(12rem, 12rem)";
+const OPEN_COL = "minmax(20rem, 1fr)";
 
 export function SignatureLibrary({
   chrome,
@@ -89,38 +88,40 @@ export function SignatureLibrary({
               {strip.title}
             </p>
 
-            {open ? (
-              <>
-                <p className="mb-6 text-[16px] font-medium leading-snug text-ink">
-                  {strip.functionLine}
-                </p>
-                <div className="overflow-hidden">
-                  <LandingComposeMockup
-                    className="min-h-[22rem]"
-                    title={chrome.title}
-                    toLabel={chrome.toLabel}
-                    toValue={strip.to}
-                    subjectLabel={chrome.subjectLabel}
-                    subjectValue={strip.subject}
-                    body={strip.body}
-                    name={chrome.name}
-                    role={chrome.role}
-                    company={chrome.company}
-                    phone={chrome.phone}
-                    email={chrome.email}
-                    send={chrome.send}
-                    variant={strip.variant}
-                    cta={strip.cta}
-                    ctaContext={strip.ctaContext}
-                    banner={strip.banner}
-                  />
-                </div>
-              </>
-            ) : hoverable ? (
-              <div className="overflow-hidden bg-paper">
-                <ComposeTitleBar title={chrome.title} framed />
-              </div>
-            ) : null}
+            <p
+              className={cn(
+                "sig-library-fn text-[16px] font-medium leading-snug text-ink",
+                open ? "sig-library-fn-open" : "sig-library-fn-closed",
+              )}
+            >
+              {strip.functionLine}
+            </p>
+            <div
+              className={cn(
+                "sig-library-window",
+                open ? "sig-library-window-open" : "sig-library-window-closed",
+              )}
+            >
+              <LandingComposeMockup
+                className="min-h-[22rem]"
+                title={chrome.title}
+                toLabel={chrome.toLabel}
+                toValue={strip.to}
+                subjectLabel={chrome.subjectLabel}
+                subjectValue={strip.subject}
+                body={strip.body}
+                name={chrome.name}
+                role={chrome.role}
+                company={chrome.company}
+                phone={chrome.phone}
+                email={chrome.email}
+                send={chrome.send}
+                variant={strip.variant}
+                cta={strip.cta}
+                ctaContext={strip.ctaContext}
+                banner={strip.banner}
+              />
+            </div>
           </div>
         );
       })}

@@ -35,8 +35,11 @@ export type LintResult = {
 
 export type LintOptions = {
   approvedLogoAssetId?: string;
+  approvedLogoUrl?: string;
+  approvedLogoFound?: boolean;
   allowedPalette?: string[];
   requiredDisclaimer?: boolean;
+  hasLegalDisclaimerText?: boolean;
   maxWidth?: number;
   maxSizeBytes?: number;
 };

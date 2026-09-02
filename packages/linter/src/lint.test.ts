@@ -47,4 +47,32 @@ describe("lintHtml", () => {
     const result = lintHtml(without, { requiredDisclaimer: true });
     expect(result.issues.some((i) => i.id === "missing-disclaimer")).toBe(true);
   });
+
+  it("does not flag disclaimer when the block text is present", () => {
+    const html = `<table><tr><td>Bu e-posta gizlidir.</td></tr></table>`;
+    const result = lintHtml(html, { requiredDisclaimer: true, hasLegalDisclaimerText: true });
+    expect(result.issues.some((i) => i.id === "missing-disclaimer")).toBe(false);
+  });
+
+  it("still requires a legal disclaimer when campaign overlay markup is present", () => {
+    const html = `<table><tr><td><img src="https://cdn.example.com/banner.png" alt="Campaign banner" width="400" height="80" /><p>10. yıl</p></td></tr><tr><td><a href="https://acme.com/10">Kutla</a></td></tr></table>`;
+    const result = lintHtml(html, { requiredDisclaimer: true, hasLegalDisclaimerText: false });
+    expect(result.issues.some((i) => i.id === "missing-disclaimer")).toBe(true);
+  });
+
+  it("clears unapproved logo when the asset reference resolves", () => {
+    const result = lintHtml(safeHtml, { approvedLogoFound: true, requiredDisclaimer: true });
+    expect(result.issues.some((i) => i.id === "unapproved-logo")).toBe(false);
+  });
+
+  it("does not flag localhost http resources", () => {
+    const html = `<table><tr><td><img src="http://localhost:3000/uploads/logo.png" alt="Logo" width="120" height="40" /></td></tr></table>`;
+    const result = lintHtml(html);
+    expect(result.issues.some((i) => i.id === "no-http")).toBe(false);
+  });
+
+  it("flags unapproved logo when the asset reference is missing", () => {
+    const result = lintHtml(safeHtml, { approvedLogoFound: false });
+    expect(result.issues.some((i) => i.id === "unapproved-logo")).toBe(true);
+  });
 });

@@ -29,7 +29,7 @@ export default async function LandingPage({
 
   return (
     <div className="min-h-screen bg-paper">
-      <PublicHeader locale={locale} actionHref="/giris" actionLabel={t("signIn")} />
+      <PublicHeader locale={locale} actionHref={ctaHref} actionLabel={t("signIn")} />
 
       <main>
         <section className="mx-auto max-w-[1080px] px-6 pb-14 pt-14 text-center lg:pb-16 lg:pt-16">

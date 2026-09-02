@@ -68,6 +68,24 @@ describe("TemplateDefinition", () => {
     const result = safeParseTemplateDefinition({ layout: "single-column", blocks: [] });
     expect(result.success).toBe(false);
   });
+
+  it("normalizes legacy logo and certifications blocks", () => {
+    const parsed = parseTemplateDefinition({
+      layout: "single-column",
+      blocks: [
+        { type: "company_logo", assetId: "logo-1", imageUrl: "https://old.example/x.png" },
+        { type: "certifications", items: ["ISO 27001"] },
+        { type: "campaign_banner", campaignId: "asset:banner-1" },
+      ],
+    });
+    const logo = parsed.blocks[0];
+    const certs = parsed.blocks[1];
+    const banner = parsed.blocks[2];
+    expect(logo?.type === "company_logo" && logo.logoVariant).toBe("default");
+    expect(certs?.type === "certifications" && certs.assetIds).toEqual([]);
+    expect(certs?.type === "certifications" && certs.migrationWarning).toMatch(/yeniden seçin/);
+    expect(banner?.type === "campaign_banner" && banner.assetId).toBe("banner-1");
+  });
 });
 
 describe("RuleDefinition", () => {

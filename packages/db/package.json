@@ -17,6 +17,7 @@
     "migrate": "prisma migrate dev",
     "push": "prisma db push",
     "seed": "tsx src/seed.ts",
+    "migrate:assets": "tsx src/migrate-template-assets.ts",
     "lint": "tsc --noEmit"
   },
   "dependencies": {

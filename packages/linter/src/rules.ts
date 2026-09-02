@@ -69,8 +69,14 @@ const rules: RuleCheck[] = [
           deduction: 10,
         }
       : null,
-  (html) =>
-    /src=["']http:\/\//i.test(html) || /href=["']http:\/\//i.test(html)
+  (html) => {
+    const httpUrls = [
+      ...html.matchAll(/\b(?:src|href)=["'](http:\/\/[^"']+)["']/gi),
+    ].map((match) => match[1] ?? "");
+    const insecure = httpUrls.filter(
+      (url) => !url.startsWith("http://localhost") && !url.startsWith("http://127.0.0.1"),
+    );
+    return insecure.length > 0
       ? {
           id: "no-http",
           severity: "error",
@@ -79,7 +85,8 @@ const rules: RuleCheck[] = [
           remediation: "+8 points if you use HTTPS URLs for all resources",
           deduction: 8,
         }
-      : null,
+      : null;
+  },
   (html) => {
     const imgs = [...html.matchAll(/<img[^>]*>/gi)];
     const missing = imgs.filter((m) => !/\balt=["'][^"']+["']/i.test(m[0] ?? ""));
@@ -186,8 +193,20 @@ const rules: RuleCheck[] = [
         }
       : null,
   (html, options) => {
+    if (options.approvedLogoFound === true) return null;
+    if (options.approvedLogoFound === false) {
+      return {
+        id: "unapproved-logo",
+        severity: "warning",
+        category: "brand_compliance",
+        message: "Approved logo asset not found",
+        remediation: "+8 points if you use the approved logo asset ID in your template",
+        deduction: 8,
+      };
+    }
     if (!options.approvedLogoAssetId) return null;
-    const hasApproved = html.includes(options.approvedLogoAssetId);
+    const needle = options.approvedLogoUrl ?? options.approvedLogoAssetId;
+    const hasApproved = html.includes(needle);
     return !hasApproved
       ? {
           id: "unapproved-logo",
@@ -200,9 +219,20 @@ const rules: RuleCheck[] = [
       : null;
   },
   (html, options) => {
+    if (options.hasLegalDisclaimerText === true) return null;
     if (!options.requiredDisclaimer) return null;
+    if (options.hasLegalDisclaimerText === false) {
+      return {
+        id: "missing-disclaimer",
+        severity: "error",
+        category: "brand_compliance",
+        message: "Required legal disclaimer missing",
+        remediation: "+10 points if you add a legal disclaimer block",
+        deduction: 10,
+      };
+    }
     const hasDisclaimer =
-      /confidential|disclaimer|legal/i.test(html) || html.includes("legal_disclaimer");
+      /confidential|disclaimer|legal|gizlidir|gizli/i.test(html) || html.includes("legal_disclaimer");
     return !hasDisclaimer
       ? {
           id: "missing-disclaimer",

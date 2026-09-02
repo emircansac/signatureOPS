@@ -179,11 +179,22 @@ export default function SimulatorPage() {
                       </Badge>
                     </p>
                     <p className="text-sm text-lead">{step.reason}</p>
-                    {step.ruleId === result.winningRule && (
-                      <Badge variant="success" className="mt-1">
-                        Winner
-                      </Badge>
-                    )}
+                    {step.wonAxes.length > 0 ? (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {step.wonAxes.map((axis) => (
+                          <Badge key={axis} variant="success">
+                            {axis}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : null}
+                    {step.excludedAxes.length > 0 ? (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {step.excludedAxes.map((axis) => (
+                          <Badge key={axis}>{axis}</Badge>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               ))}

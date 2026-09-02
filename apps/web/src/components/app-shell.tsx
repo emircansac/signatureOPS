@@ -18,11 +18,13 @@ export function AppShell({
   locale,
   orgSlug,
   orgName,
+  hideSignOut = false,
   children,
 }: {
   locale: string;
   orgSlug: string;
   orgName: string;
+  hideSignOut?: boolean;
   children: ReactNode;
 }) {
   const t = useTranslations("common");
@@ -39,7 +41,8 @@ export function AppShell({
     { href: orgPath(orgSlug, "/assets"), key: "assets" as const },
     { href: orgPath(orgSlug, "/directory"), key: "directory" as const },
     { href: orgPath(orgSlug, "/campaigns"), key: "campaigns" as const },
-    { href: orgPath(orgSlug, "/audit"), key: "audit" as const },
+    { href: orgPath(orgSlug, "/rules"), key: "rules" as const },
+    { href: orgPath(orgSlug, "/simulate"), key: "simulate" as const },
   ];
 
   useEffect(() => {
@@ -114,13 +117,15 @@ export function AppShell({
             >
               EN
             </Link>
-            <button
-              type="button"
-              className="hover:text-ink"
-              onClick={() => signOut({ callbackUrl: `/${locale}` })}
-            >
-              {t("signOut")}
-            </button>
+            {hideSignOut ? null : (
+              <button
+                type="button"
+                className="hover:text-ink"
+                onClick={() => signOut({ callbackUrl: `/${locale}` })}
+              >
+                {t("signOut")}
+              </button>
+            )}
           </div>
         </div>
         <div className="h-px bg-rule" />

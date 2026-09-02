@@ -52,6 +52,12 @@ async function main() {
       name: "Acme Corp",
       slug: "acme",
       provider: "BOTH",
+      brandColors: JSON.stringify([
+        { id: "color-1c2b3a", hex: "#1C2B3A", label: "Mürekkep" },
+        { id: "color-a63d2f", hex: "#A63D2F", label: "Vurgu" },
+        { id: "color-f6f4ef", hex: "#F6F4EF", label: "Kağıt" },
+      ]),
+      socialIconMode: "standard",
     },
   });
 
@@ -69,6 +75,7 @@ async function main() {
       id: "asset-logo",
       orgId: org.id,
       kind: "LOGO",
+      slot: "logo",
       url: "https://cdn.acme.com/logo.png",
       bytes: 12000,
       width: 120,
@@ -82,6 +89,7 @@ async function main() {
       id: "asset-banner",
       orgId: org.id,
       kind: "BANNER",
+      slot: "banner",
       url: "https://cdn.acme.com/spring-banner.png",
       bytes: 45000,
       width: 400,
@@ -96,9 +104,11 @@ async function main() {
       orgId: org.id,
       name: "Spring 2026",
       bannerAssetId: "asset-banner",
-      startDate: new Date("2026-03-01"),
-      endDate: new Date("2026-06-30"),
+      startDate: new Date("2026-03-01T12:00:00.000Z"),
+      endDate: new Date("2026-06-30T12:00:00.000Z"),
+      slogan: "Spring campaign",
       targeting: JSON.stringify({ departments: ["Marketing", "Sales"] }),
+      templateIds: JSON.stringify([]),
     },
   });
 
@@ -184,6 +194,11 @@ async function main() {
       definition: JSON.stringify(executiveTemplate),
       compatibility: JSON.stringify({ outlookSafe: true, darkMode: true, mobileWidth: 320 }),
     },
+  });
+
+  await prisma.campaign.update({
+    where: { id: campaign.id },
+    data: { templateIds: JSON.stringify([tplSales.id]) },
   });
 
   const rules = [

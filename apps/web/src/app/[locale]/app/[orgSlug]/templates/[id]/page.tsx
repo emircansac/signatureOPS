@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import { useTranslations } from "next-intl";
-import type { TemplateDefinition } from "@signatureops/schema";
+import { parseTemplateDefinition } from "@signatureops/schema";
 import { trpc } from "@/lib/trpc";
 import { Card, PageHeading } from "@/components/ui";
 import { TemplateEditor } from "@/components/template-editor";
@@ -26,13 +26,14 @@ export default function TemplateEditPage({
   if (isLoading) return <div>Loading...</div>;
   if (!template) return <Card>Not found</Card>;
 
-  const definition = JSON.parse(template.definition) as TemplateDefinition;
+  const definition = parseTemplateDefinition(JSON.parse(template.definition));
 
   return (
     <div className="space-y-6">
       <PageHeading title={`${t("title")}: ${template.name}`} />
       <Card>
         <TemplateEditor
+          templateId={id}
           initial={{ name: template.name, definition }}
           onSave={(data) =>
             updateMutation.mutate({ id, name: data.name, definition: data.definition })

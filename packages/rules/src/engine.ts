@@ -20,7 +20,18 @@ export type SimulationContext = {
   at: Date;
   office?: string;
   brand?: string;
+  /** Campaign IDs whose status is active in the org timezone. */
+  activeCampaignIds?: string[];
 };
+
+export const EXCLUSIVE_ACTION_AXES = [
+  "select_template",
+  "select_disclaimer",
+  "select_banner",
+  "override_brand_asset",
+] as const;
+export type ExclusiveActionAxis = (typeof EXCLUSIVE_ACTION_AXES)[number];
+export type ActionAxis = ExclusiveActionAxis | "hide_block" | "show_block";
 
 export type ExplanationStep = {
   ruleId: string;
@@ -30,12 +41,15 @@ export type ExplanationStep = {
   matched: boolean;
   excluded: boolean;
   reason: string;
+  wonAxes: ActionAxis[];
+  excludedAxes: ActionAxis[];
 };
 
 export type RuleConflict = {
   level: RuleLevel;
   ruleIds: string[];
   message: string;
+  axis?: ActionAxis;
 };
 
 export type SimulationActions = {
@@ -98,7 +112,7 @@ export function evaluateCondition(
     case "recipient_type":
       return matchString(ctx.recipientType, condition.operator, condition.value);
     case "campaign_active":
-      return condition.value === true;
+      return matchArray(ctx.activeCampaignIds ?? [], condition.operator, condition.value);
     default:
       return false;
   }
@@ -135,8 +149,8 @@ function matchArray(
 ): boolean {
   if (typeof expected === "boolean") return false;
   const values = Array.isArray(expected) ? expected : [String(expected)];
-  if (operator === "in") return values.some((v) => actual.includes(v));
-  if (operator === "not_in") return !values.some((v) => actual.includes(v));
+  if (operator === "in" || operator === "eq") return values.some((v) => actual.includes(v));
+  if (operator === "not_in" || operator === "neq") return !values.some((v) => actual.includes(v));
   return false;
 }
 
@@ -188,13 +202,26 @@ export function applyActions(
   return result;
 }
 
-export function detectMissingData(ctx: SimulationContext): string[] {
+export function detectMissingData(ctx: SimulationContext, rules: RuleDefinition[] = []): string[] {
   const missing: string[] = [];
   if (!ctx.user.displayName) missing.push("user.displayName");
   if (!ctx.user.email) missing.push("user.email");
   if (!ctx.user.jobTitle) missing.push("user.jobTitle");
   if (!ctx.user.department) missing.push("user.department");
+  if (!ctx.user.country) missing.push("user.country");
+
+  const conditionTypes = new Set(rules.flatMap((rule) => rule.conditions.map((c) => c.type)));
+  if (conditionTypes.has("office") && !ctx.office) missing.push("office");
+  if (conditionTypes.has("brand") && !ctx.brand) missing.push("brand");
   return missing;
+}
+
+function hasActionType(rule: RuleDefinition, type: ActionAxis): boolean {
+  return rule.actions.some((action) => action.type === type);
+}
+
+function isExclusiveAxis(axis: string): axis is ExclusiveActionAxis {
+  return (EXCLUSIVE_ACTION_AXES as readonly string[]).includes(axis);
 }
 
 export function runRuleEngine(request: SimulateRequest): SimulateResult {
@@ -203,13 +230,12 @@ export function runRuleEngine(request: SimulateRequest): SimulateResult {
   const matched: string[] = [];
   const excluded: string[] = [];
   const conflicts: RuleConflict[] = [];
+  const matchedRules: RuleDefinition[] = [];
 
   let actions: SimulationActions = {
     templateId: request.defaultTemplateId,
     hiddenBlocks: [],
   };
-
-  const matchedByLevel = new Map<RuleLevel, RuleDefinition[]>();
 
   for (const rule of sorted) {
     const isMatch = ruleMatches(rule, request.context);
@@ -219,66 +245,102 @@ export function runRuleEngine(request: SimulateRequest): SimulateResult {
       level: rule.level,
       priority: rule.priority,
       matched: isMatch,
-      excluded: false,
+      excluded: !isMatch,
       reason: isMatch
         ? `All ${rule.conditions.length} condition(s) satisfied`
-        : `One or more conditions not satisfied`,
+        : `Excluded: conditions not met`,
+      wonAxes: [],
+      excludedAxes: [],
     };
 
     if (isMatch) {
       matched.push(rule.id);
-      const levelRules = matchedByLevel.get(rule.level) ?? [];
-      levelRules.push(rule);
-      matchedByLevel.set(rule.level, levelRules);
+      matchedRules.push(rule);
     } else {
       excluded.push(rule.id);
-      step.excluded = true;
-      step.reason = `Excluded: conditions not met`;
     }
 
     steps.push(step);
   }
 
-  let winningRule: RuleDefinition | undefined;
-  let winningLevelIndex = -1;
+  const stepById = new Map(steps.map((step) => [step.ruleId, step]));
 
-  for (let i = 0; i < LEVEL_ORDER.length; i++) {
-    const level = LEVEL_ORDER[i]!;
-    const levelMatches = matchedByLevel.get(level);
-    if (!levelMatches || levelMatches.length === 0) continue;
-
-    if (levelMatches.length > 1) {
-      conflicts.push({
-        level,
-        ruleIds: levelMatches.map((r) => r.id),
-        message: `Multiple rules matched at ${level} level — highest priority (${levelMatches[0]!.priority}) wins`,
-      });
-    }
-
-    const winner = levelMatches[0]!;
-    winningRule = winner;
-    winningLevelIndex = i;
-    actions = applyActions(actions, winner.actions);
-
-    for (const step of steps) {
-      if (step.level === level && step.matched && step.ruleId !== winner.id) {
-        step.excluded = true;
-        step.reason = `Excluded: lower priority within ${level} level`;
+  for (const axis of EXCLUSIVE_ACTION_AXES) {
+    let winner: RuleDefinition | undefined;
+    for (const level of LEVEL_ORDER) {
+      const candidates = matchedRules.filter((rule) => rule.level === level && hasActionType(rule, axis));
+      if (candidates.length === 0) continue;
+      if (candidates.length > 1) {
+        conflicts.push({
+          level,
+          axis,
+          ruleIds: candidates.map((rule) => rule.id),
+          message: `Multiple rules matched at ${level} level on ${axis} — highest priority (${candidates[0]!.priority}) wins`,
+        });
       }
+      winner = candidates[0];
+      break;
     }
-    break;
+    if (!winner) continue;
+
+    actions = applyActions(
+      actions,
+      winner.actions.filter((action) => action.type === axis),
+    );
+
+    const winnerStep = stepById.get(winner.id);
+    if (winnerStep && !winnerStep.wonAxes.includes(axis)) {
+      winnerStep.wonAxes.push(axis);
+    }
+
+    for (const rule of matchedRules) {
+      if (rule.id === winner.id || !hasActionType(rule, axis)) continue;
+      const step = stepById.get(rule.id);
+      if (!step) continue;
+      if (!step.excludedAxes.includes(axis)) step.excludedAxes.push(axis);
+      step.reason =
+        rule.level === winner.level
+          ? `Excluded: lower priority within ${rule.level} level`
+          : `Excluded: lower precedence than ${winner.level} winner`;
+    }
   }
 
-  if (winningLevelIndex >= 0) {
-    for (const step of steps) {
-      if (!step.matched || step.excluded) continue;
-      const stepLevelIndex = LEVEL_ORDER.indexOf(step.level);
-      if (stepLevelIndex > winningLevelIndex) {
-        step.excluded = true;
-        step.reason = `Excluded: lower precedence than ${LEVEL_ORDER[winningLevelIndex]} winner`;
+  for (const rule of [...matchedRules].reverse()) {
+    const visibility = rule.actions.filter(
+      (action) => action.type === "hide_block" || action.type === "show_block",
+    );
+    if (visibility.length === 0) continue;
+    actions = applyActions(actions, visibility);
+    const step = stepById.get(rule.id);
+    if (!step) continue;
+    for (const action of visibility) {
+      if (!step.wonAxes.includes(action.type)) step.wonAxes.push(action.type);
+    }
+  }
+
+  for (const step of steps) {
+    if (!step.matched) continue;
+    if (step.wonAxes.length > 0) {
+      step.excluded = false;
+      step.reason =
+        step.excludedAxes.length > 0
+          ? `Won ${step.wonAxes.join(", ")}; excluded from ${step.excludedAxes.join(", ")}: lower precedence`
+          : `Won ${step.wonAxes.join(", ")}`;
+    } else if (step.excludedAxes.length > 0) {
+      step.excluded = true;
+      if (!step.reason.includes("lower precedence") && !step.reason.includes("lower priority")) {
+        step.reason = `Excluded: lower precedence than more specific winner`;
       }
     }
   }
+
+  const exclusiveWinners = steps
+    .filter((step) => step.matched && step.wonAxes.some((axis) => isExclusiveAxis(axis)))
+    .sort((a, b) => {
+      const levelDiff = LEVEL_ORDER.indexOf(a.level) - LEVEL_ORDER.indexOf(b.level);
+      if (levelDiff !== 0) return levelDiff;
+      return a.priority - b.priority;
+    });
 
   return {
     selectedTemplateId: actions.templateId,
@@ -287,9 +349,9 @@ export function runRuleEngine(request: SimulateRequest): SimulateResult {
     rulesEvaluated: steps,
     rulesMatched: matched,
     rulesExcluded: excluded,
-    winningRule: winningRule?.id,
+    winningRule: exclusiveWinners[0]?.ruleId,
     conflicts,
-    missingData: detectMissingData(request.context),
+    missingData: detectMissingData(request.context, request.rules),
     actions,
   };
 }

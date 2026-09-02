@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
     "@signatureops/rules",
     "@signatureops/db",
   ],
-  serverExternalPackages: ["@prisma/client"],
+  serverExternalPackages: ["@prisma/client", "xlsx"],
 };
 
 export default withNextIntl(nextConfig);
