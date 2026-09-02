@@ -1,23 +1,20 @@
 import { test, expect } from "@playwright/test";
 
-test("dashboard loads with org stats", async ({ page }) => {
+test("landing page is public", async ({ page }) => {
   await page.goto("/tr");
-  await expect(page.getByRole("heading", { name: "Kontrol Paneli" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /büyük bir fırsat/i })).toBeVisible();
   await expect(page.getByRole("link", { name: "SignatureOps" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Giriş yap" }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Google ile devam et" })).toHaveCount(0);
 });
 
-test("templates preview and copy html", async ({ page }) => {
-  await page.goto("/tr/templates");
-  await expect(page.getByRole("heading", { name: "Şablonlar" })).toBeVisible();
-  await page.waitForResponse((res) => res.url().includes("users.list") && res.status() === 200);
-  await page.getByRole("button", { name: "Önizleme" }).click();
-  await page.waitForResponse((res) => res.url().includes("compilePreview") && res.status() === 200);
-  await expect(page.getByRole("button", { name: "Gmail için kopyala" })).toBeVisible({ timeout: 5000 });
+test("login page shows Google sign-in", async ({ page }) => {
+  await page.goto("/tr/giris");
+  await expect(page.getByRole("heading", { name: "Giriş yap" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Google ile devam et" })).toBeVisible();
 });
 
-test("audit page analyzes client-side", async ({ page }) => {
-  await page.goto("/tr/audit");
-  await page.locator("textarea").fill('<div style="display:flex"><script></script></div>');
-  await page.getByRole("button", { name: "Analiz Et" }).click();
-  await expect(page.getByText("Flexbox detected")).toBeVisible();
+test("admin panel redirects to login", async ({ page }) => {
+  await page.goto("/tr/app/acme");
+  await expect(page).toHaveURL(/\/tr\/giris/);
 });

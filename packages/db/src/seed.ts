@@ -50,6 +50,7 @@ async function main() {
   const org = await prisma.organization.create({
     data: {
       name: "Acme Corp",
+      slug: "acme",
       provider: "BOTH",
     },
   });

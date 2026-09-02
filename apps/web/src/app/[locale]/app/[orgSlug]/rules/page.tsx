@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { trpc } from "@/lib/trpc";
-import { Badge, Button, Card, Input, Label, Select } from "@/components/ui";
+import { Badge, Button, Card, Input, Label, PageHeading, Select } from "@/components/ui";
+import { orgPath, useOrgSlug } from "@/lib/org-path";
 
 const CONDITION_TYPES = [
   "user",
@@ -25,6 +26,7 @@ const LEVELS = ["USER", "GROUP", "DEPT_OFFICE", "ORG"] as const;
 export default function RulesPage() {
   const t = useTranslations("rules");
   const tc = useTranslations("common");
+  const orgSlug = useOrgSlug();
   const utils = trpc.useUtils();
   const { data: rules, isLoading } = trpc.rules.list.useQuery();
   const { data: templates } = trpc.templates.list.useQuery();
@@ -48,10 +50,7 @@ export default function RulesPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="text-zinc-500">{t("subtitle")}</p>
-      </div>
+      <PageHeading title={t("title")} subtitle={t("subtitle")} />
 
       <Card>
         <h2 className="mb-4 font-semibold">{t("create")}</h2>
@@ -144,12 +143,12 @@ export default function RulesPage() {
                   <Badge variant="default">P{rule.priority}</Badge>
                   {!rule.enabled && <Badge variant="warning">{tc("disabled")}</Badge>}
                 </div>
-                <p className="mt-1 text-sm text-zinc-500">
+                <p className="mt-1 text-sm text-lead">
                   {JSON.parse(rule.conditions).length} condition(s)
                 </p>
               </div>
               <div className="flex gap-2">
-                <Link href="/simulate">
+                <Link href={orgPath(orgSlug, "/simulate")}>
                   <Button variant="secondary">{t("testInSimulator")}</Button>
                 </Link>
                 <Button

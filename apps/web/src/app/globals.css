@@ -1,19 +1,27 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #ffffff;
-  --color-foreground: #0a0a0a;
-  --color-muted: #f4f4f5;
-  --color-muted-foreground: #71717a;
-  --color-border: #e4e4e7;
-  --color-primary: #0066cc;
-  --color-primary-foreground: #ffffff;
-  --color-accent: #f0f7ff;
-  --color-destructive: #dc2626;
-  --color-card: #ffffff;
-  --radius-sm: 0.375rem;
-  --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
+  --color-ink: #1c2b3a;
+  --color-paper: #f6f4ef;
+  --color-seal: #a63d2f;
+  --color-lead: #5b6472;
+  --color-rule: #d8d3c7;
+  --color-background: #f6f4ef;
+  --color-foreground: #1c2b3a;
+  --color-muted: #f6f4ef;
+  --color-muted-foreground: #5b6472;
+  --color-border: #d8d3c7;
+  --color-primary: #a63d2f;
+  --color-primary-foreground: #f6f4ef;
+  --color-accent: #f6f4ef;
+  --color-destructive: #1c2b3a;
+  --color-card: #f6f4ef;
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --font-sans: var(--font-plex-sans), "IBM Plex Sans", sans-serif;
+  --font-serif: var(--font-fraunces), Fraunces, serif;
+  --font-mono: var(--font-plex-mono), "IBM Plex Mono", monospace;
 }
 
 * {
@@ -22,7 +30,70 @@
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
-  background: var(--color-background);
-  color: var(--color-foreground);
+  font-family: var(--font-plex-sans), "IBM Plex Sans", sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+.landing-sig-stroke {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: landing-sig-draw 1.05s ease-out 0.12s forwards;
+}
+
+@keyframes landing-sig-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-sig-stroke {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+.sig-library {
+  display: flex;
+  flex-direction: column;
+}
+
+.sig-library-strip + .sig-library-strip {
+  border-top: 1px solid var(--color-rule);
+}
+
+.sig-library-mobile-trigger {
+  display: flex;
+}
+
+.sig-library-label {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) and (min-width: 768px) {
+  .sig-library {
+    display: grid;
+    align-items: start;
+    gap: 0.75rem;
+    transition: grid-template-columns 0.4s ease;
+  }
+
+  .sig-library-strip + .sig-library-strip {
+    border-top: none;
+  }
+
+  .sig-library-mobile-trigger {
+    display: none;
+  }
+
+  .sig-library-label {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sig-library {
+    transition: none;
+  }
 }

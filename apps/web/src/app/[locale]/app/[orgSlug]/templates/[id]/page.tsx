@@ -4,7 +4,7 @@ import { use } from "react";
 import { useTranslations } from "next-intl";
 import type { TemplateDefinition } from "@signatureops/schema";
 import { trpc } from "@/lib/trpc";
-import { Card } from "@/components/ui";
+import { Card, PageHeading } from "@/components/ui";
 import { TemplateEditor } from "@/components/template-editor";
 
 export default function TemplateEditPage({
@@ -30,11 +30,7 @@ export default function TemplateEditPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">
-          {t("title")}: {template.name}
-        </h1>
-      </div>
+      <PageHeading title={`${t("title")}: ${template.name}`} />
       <Card>
         <TemplateEditor
           initial={{ name: template.name, definition }}

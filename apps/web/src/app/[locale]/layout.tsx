@@ -3,8 +3,8 @@ import { NextIntlClientProvider } from "next-intl";
 import { getMessages, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
-import { TRPCProvider } from "@/lib/trpc";
-import { AppShell } from "@/components/app-shell";
+import { AppProviders } from "@/components/app-providers";
+import { fraunces, plexMono, plexSans } from "@/lib/fonts";
 import "../globals.css";
 
 export const metadata: Metadata = {
@@ -28,12 +28,13 @@ export default async function LocaleLayout({ children, params }: Props) {
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
-      <body>
+    <html
+      lang={locale}
+      className={`${fraunces.variable} ${plexSans.variable} ${plexMono.variable}`}
+    >
+      <body className={`${plexSans.className} bg-paper text-ink antialiased`}>
         <NextIntlClientProvider messages={messages}>
-          <TRPCProvider>
-            <AppShell locale={locale}>{children}</AppShell>
-          </TRPCProvider>
+          <AppProviders>{children}</AppProviders>
         </NextIntlClientProvider>
       </body>
     </html>

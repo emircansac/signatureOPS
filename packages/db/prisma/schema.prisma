@@ -42,6 +42,7 @@ enum AdminRole {
 model Organization {
   id        String   @id @default(cuid())
   name      String
+  slug      String   @unique
   provider  Provider @default(BOTH)
   createdAt DateTime @default(now())
 
@@ -62,10 +63,12 @@ model AdminUser {
   org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   email     String
   name      String
+  googleSub String?
   role      AdminRole @default(CONTENT_MANAGER)
   createdAt DateTime  @default(now())
 
   @@unique([orgId, email])
+  @@index([googleSub])
 }
 
 model User {

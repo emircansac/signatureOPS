@@ -1,7 +1,7 @@
 {
   "common": {
     "appName": "SignatureOps",
-    "dashboard": "Panel",
+    "dashboard": "İmza paneli",
     "templates": "Şablonlar",
     "assets": "Görseller",
     "rules": "Kurallar",
@@ -25,14 +25,15 @@
     "copied": "Kopyalandı",
     "export": "Dışa Aktar",
     "preview": "Önizleme",
-    "score": "Quality Score"
+    "score": "Quality Score",
+    "signOut": "Çıkış"
   },
   "nav": {
     "openMenu": "Menüyü aç",
     "closeMenu": "Menüyü kapat",
     "management": "Yönetim",
     "managementHint": "Daha az kullanılan araçlar",
-    "backToPanel": "Panele dön",
+    "backToPanel": "İmza paneline dön",
     "desc": {
       "templates": "Tasarla, önizle ve Gmail'e yapıştırmak için HTML kopyala",
       "rules": "Kime hangi imzanın gideceğini belirle",
@@ -44,7 +45,7 @@
     }
   },
   "dashboard": {
-    "title": "Kontrol Paneli",
+    "title": "İmza paneli",
     "subtitle": "İmza tasarla, HTML kopyala, Gmail ayarlarına yapıştır",
     "workflow": "Nasıl kullanılır",
     "management": "Yönetim",
@@ -83,7 +84,14 @@
     "buttonLabel": "Buton metni",
     "items": "Öğeler (virgülle)",
     "profilePhotoHint": "Profil fotoğrafı dizinden (user.photoUrl) otomatik gelir",
-    "previewUser": "Önizleme kullanıcısı"
+    "previewUser": "Önizleme kullanıcısı",
+    "livePreview": "Canlı önizleme",
+    "newMessage": "Yeni ileti",
+    "from": "Kimden",
+    "to": "Kime",
+    "subject": "Konu",
+    "previewBody": "Selam,\n\nSoldaki formu doldurarak imzanı oluşturabilir, bu alanda önizlemesini görüntüleyebilirsin.\n\nSevgiler",
+    "previewEmpty": "Önizleme için soldan bir kullanıcı seçin."
   },
   "assets": {
     "title": "Marka Görselleri",
@@ -185,5 +193,61 @@
     "custom_text": "Özel metin",
     "spacer": "Boşluk",
     "divider": "Ayırıcı"
+  },
+  "marketing": {
+    "headline": "Küçük bir alan, <line>büyük bir fırsat.</line>",
+    "subhead": "İmzanız da bir mesaj taşısın.",
+    "cta": "Ücretsiz Dene",
+    "signIn": "Giriş Yap",
+    "contact": "İletişim",
+    "privacy": "Gizlilik",
+    "feature1Title": "Markanıza özel panel",
+    "feature1Body": "Kurumunuzun logosu, renkleri ve kuralları tek panelde tanımlanır.",
+    "feature2Title": "Her imza yönetilebilir",
+    "feature2Body": "Kimlik bilgisinden kampanyaya, istediğiniz anda güncellenir.",
+    "feature3Title": "Gmail'e tek tık",
+    "feature3Body": "Çalışan kendi bilgisini girer, imzayı kopyalayıp yapıştırır.",
+    "libraryHeadline": "Farklı e-postalar, farklı imzalar.",
+    "library1Title": "Toplantı daveti",
+    "library1Function": "Alıcıyı tek tıkla harekete geçirir.",
+    "library1To": "mehmet.kaya@ornek.com",
+    "library1Subject": "Görüşme talebi",
+    "library1Body": "Mehmet merhaba,\nUygun olduğun bir saatte kısaca görüşebilir miyiz?",
+    "library1Context": "Eylüle kadar açık.",
+    "library2Title": "Kampanya duyurusu",
+    "library2Function": "Duyurunuzu her e-postada hatırlatır.",
+    "library2To": "selin.yilmaz@ornek.com",
+    "library2Subject": "Eylül ayı özeti",
+    "library2Body": "Selin merhaba,\nBu ayın özetini ekte bulabilirsin.",
+    "library3Title": "Sade tanışma",
+    "library3Function": "Kurumsal kimliği sade ve güvenilir taşır.",
+    "library3To": "can.ozturk@ornek.com",
+    "library3Subject": "Merhaba",
+    "library3Body": "Can merhaba,\nKısaca tanışmak isterim.",
+    "mockupTitle": "Yeni ileti",
+    "mockupTo": "Alıcı",
+    "mockupSubject": "Konu",
+    "mockupName": "Ayşe Demir",
+    "mockupRole": "İletişim müdürü",
+    "mockupCompany": "Örnek A.Ş.",
+    "mockupPhone": "+90 212 555 01 01",
+    "mockupEmail": "ayse.demir@ornek.com",
+    "mockupCta": "Toplantı ayarla",
+    "mockupBanner": "Eylül webinarı — 12 Eylül, kayıt açık",
+    "mockupSend": "Gönder",
+    "mockupLogoLetter": "Ö"
+  },
+  "auth": {
+    "signIn": "Giriş Yap",
+    "signInTitle": "Giriş Yap",
+    "signInHint": "İmza paneline ulaşmak için Google hesabınızla devam edin.",
+    "continueGoogle": "Google ile devam et",
+    "goToPanel": "İmza paneline git",
+    "finishSetup": "Kurumu oluştur",
+    "onboardingTitle": "Kurumunuzu oluşturun",
+    "onboardingHint": "İmza paneli adresiniz bu kısa addan oluşacak.",
+    "orgName": "Kurum adı",
+    "orgSlug": "İmza paneli adresi",
+    "createOrg": "İmza panelini oluştur"
   }
 }

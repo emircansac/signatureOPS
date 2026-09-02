@@ -9,9 +9,7 @@ export function Card({
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-lg border border-zinc-200 bg-white p-6 shadow-sm", className)}>
-      {children}
-    </div>
+    <div className={cn("border border-rule bg-paper p-6", className)}>{children}</div>
   );
 }
 
@@ -26,11 +24,11 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50",
-        variant === "primary" && "bg-[#0066cc] text-white hover:bg-blue-700",
-        variant === "secondary" && "border border-zinc-300 bg-white hover:bg-zinc-50",
-        variant === "destructive" && "bg-red-600 text-white hover:bg-red-700",
-        variant === "ghost" && "hover:bg-zinc-100",
+        "inline-flex items-center justify-center px-4 py-2 text-sm font-medium disabled:opacity-50",
+        variant === "primary" && "bg-seal text-paper",
+        variant === "secondary" && "border border-rule bg-paper text-ink hover:border-ink",
+        variant === "destructive" && "border border-rule bg-paper text-ink hover:border-ink",
+        variant === "ghost" && "text-lead hover:text-ink",
         className,
       )}
       {...props}
@@ -47,16 +45,15 @@ export function Badge({
 }: {
   children: ReactNode;
   variant?: "default" | "success" | "warning" | "error";
-  className?: string;
 }) {
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
-        variant === "default" && "bg-zinc-100 text-zinc-700",
-        variant === "success" && "bg-green-100 text-green-800",
-        variant === "warning" && "bg-yellow-100 text-yellow-800",
-        variant === "error" && "bg-red-100 text-red-800",
+        "inline-flex border border-rule px-2 py-0.5 text-xs",
+        variant === "default" && "text-lead",
+        variant === "success" && "text-ink",
+        variant === "warning" && "text-lead",
+        variant === "error" && "text-seal",
         className,
       )}
     >
@@ -65,28 +62,40 @@ export function Badge({
   );
 }
 
-export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
-      className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-[#0066cc] focus:outline-none focus:ring-1 focus:ring-[#0066cc]"
+      className={cn(
+        "w-full border border-rule bg-paper px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none",
+        className,
+      )}
       {...props}
     />
   );
 }
 
-export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+export function Select({ className, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
-      className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-[#0066cc] focus:outline-none focus:ring-1 focus:ring-[#0066cc]"
+      className={cn(
+        "w-full border border-rule bg-paper px-3 py-2 text-sm text-ink focus:border-ink focus:outline-none",
+        className,
+      )}
       {...props}
     />
   );
 }
 
-export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function Textarea({
+  className,
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
-      className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm font-mono focus:border-[#0066cc] focus:outline-none focus:ring-1 focus:ring-[#0066cc]"
+      className={cn(
+        "w-full border border-rule bg-paper px-3 py-2 font-mono text-sm text-ink focus:border-ink focus:outline-none",
+        className,
+      )}
       {...props}
     />
   );
@@ -94,8 +103,17 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
 
 export function Label({ children, htmlFor }: { children: ReactNode; htmlFor?: string }) {
   return (
-    <label htmlFor={htmlFor} className="mb-1 block text-sm font-medium text-zinc-700">
+    <label htmlFor={htmlFor} className="mb-1 block text-sm font-medium text-ink">
       {children}
     </label>
+  );
+}
+
+export function PageHeading({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div>
+      <h1 className="font-serif text-2xl font-medium text-ink">{title}</h1>
+      {subtitle ? <p className="mt-1 text-sm text-lead">{subtitle}</p> : null}
+    </div>
   );
 }

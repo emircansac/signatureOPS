@@ -3,12 +3,14 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { trpc } from "@/lib/trpc";
-import { Button, Card } from "@/components/ui";
+import { Button, Card, PageHeading } from "@/components/ui";
 import { TemplateEditor } from "@/components/template-editor";
+import { orgPath, useOrgSlug } from "@/lib/org-path";
 
 export default function TemplatesPage() {
   const t = useTranslations("templates");
   const tc = useTranslations("common");
+  const orgSlug = useOrgSlug();
   const utils = trpc.useUtils();
   const { data: templates, isLoading } = trpc.templates.list.useQuery();
   const createMutation = trpc.templates.create.useMutation({
@@ -19,10 +21,7 @@ export default function TemplatesPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="text-zinc-500">{t("subtitle")}</p>
-      </div>
+      <PageHeading title={t("title")} subtitle={t("subtitle")} />
 
       <Card>
         <h2 className="mb-4 font-semibold">{t("create")}</h2>
@@ -33,7 +32,7 @@ export default function TemplatesPage() {
       </Card>
 
       <div>
-        <h2 className="mb-4 text-lg font-semibold">Mevcut Şablonlar</h2>
+        <h2 className="mb-4 text-[15px] font-medium text-ink">Mevcut Şablonlar</h2>
         {templates?.length === 0 ? (
           <Card>{t("noTemplates")}</Card>
         ) : (
@@ -42,9 +41,9 @@ export default function TemplatesPage() {
               <Card key={tpl.id} className="flex items-center justify-between">
                 <div>
                   <h3 className="font-medium">{tpl.name}</h3>
-                  <p className="text-sm text-zinc-500">v{tpl.version}</p>
+                  <p className="text-sm text-lead">v{tpl.version}</p>
                 </div>
-                <Link href={`/templates/${tpl.id}`}>
+                <Link href={orgPath(orgSlug, `/templates/${tpl.id}`)}>
                   <Button variant="secondary">{tc("edit")}</Button>
                 </Link>
               </Card>

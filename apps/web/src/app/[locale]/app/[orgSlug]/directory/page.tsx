@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { trpc } from "@/lib/trpc";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card, PageHeading } from "@/components/ui";
 
 function missingFields(user: {
   displayName: string;
@@ -28,8 +28,7 @@ export default function DirectoryPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">{t("title")}</h1>
-          <p className="text-zinc-500">{t("subtitle")}</p>
+          <PageHeading title={t("title")} subtitle={t("subtitle")} />
         </div>
         <span title={t("syncDisabled")}>
           <Badge>Sync — Yakında</Badge>
@@ -38,7 +37,7 @@ export default function DirectoryPage() {
 
       <Card className="overflow-x-auto p-0">
         <table className="w-full text-sm">
-          <thead className="border-b border-zinc-200 bg-zinc-50">
+          <thead className="border-b border-rule">
             <tr>
               <th className="px-4 py-3 text-left font-medium">{t("email")}</th>
               <th className="px-4 py-3 text-left font-medium">Name</th>
@@ -51,7 +50,7 @@ export default function DirectoryPage() {
             {users?.map((user) => {
               const missing = missingFields(user);
               return (
-                <tr key={user.id} className="border-b border-zinc-100">
+                <tr key={user.id} className="border-b border-rule">
                   <td className="px-4 py-3">{user.email}</td>
                   <td className="px-4 py-3 font-medium">{user.displayName}</td>
                   <td className="px-4 py-3">{user.department ?? "—"}</td>

@@ -6,6 +6,7 @@ import type { TemplateDefinition, Block } from "@signatureops/schema";
 import { trpc } from "@/lib/trpc";
 import { AssetLibrary } from "@/components/asset-library";
 import { BlockConfig } from "@/components/block-config";
+import { EmailComposePreview } from "@/components/email-compose-preview";
 import { Badge, Button, Card, Input, Label, Select } from "@/components/ui";
 
 const BLOCK_TYPES = [
@@ -190,17 +191,17 @@ export function TemplateEditor({
               {definition.blocks.map((block, index) => (
                 <Card
                   key={index}
-                  className={`p-3 ${activeBlockIndex === index ? "ring-2 ring-blue-400" : ""}`}
+                  className={`p-3 ${activeBlockIndex === index ? "border-ink" : ""}`}
                 >
                   <div className="flex items-center justify-between">
                     <button
                       type="button"
-                      className="font-medium text-left hover:text-blue-600"
+                      className="text-left font-medium text-ink"
                       onClick={() => setActiveBlockIndex(activeBlockIndex === index ? null : index)}
                     >
                       {tb(block.type)}
                       {block.type === "company_logo" && "assetId" in block && block.assetId && (
-                        <span className="ml-2 text-xs text-zinc-400">({block.assetId})</span>
+                        <span className="ml-2 text-xs text-lead">({block.assetId})</span>
                       )}
                     </button>
                     <div className="flex gap-1">
@@ -251,30 +252,27 @@ export function TemplateEditor({
             )}
           </div>
 
+          <EmailComposePreview
+            html={preview?.html}
+            fromName={users?.find((u) => u.id === (previewUserId || users?.[0]?.id))?.displayName}
+          />
+
           {preview && (
-            <>
-              <Card>
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="font-medium">{t("lintPanel")}</span>
-                  <Badge variant={preview.lint.passed ? "success" : "warning"}>
-                    {preview.lint.score}/100
-                  </Badge>
-                </div>
-                <ul className="space-y-1 text-sm">
-                  {preview.lint.issues.slice(0, 5).map((issue) => (
-                    <li key={issue.id} className="text-zinc-600">
-                      {issue.message}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-              <Card>
-                <div
-                  className="overflow-auto rounded border border-zinc-100 p-4"
-                  dangerouslySetInnerHTML={{ __html: preview.html }}
-                />
-              </Card>
-            </>
+            <Card>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="font-medium">{t("lintPanel")}</span>
+                <Badge variant={preview.lint.passed ? "success" : "warning"}>
+                  {preview.lint.score}/100
+                </Badge>
+              </div>
+              <ul className="space-y-1 text-sm">
+                {preview.lint.issues.slice(0, 5).map((issue) => (
+                  <li key={issue.id} className="text-lead">
+                    {issue.message}
+                  </li>
+                ))}
+              </ul>
+            </Card>
           )}
         </div>
       </div>

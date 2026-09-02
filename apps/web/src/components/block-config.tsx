@@ -29,7 +29,7 @@ export function BlockConfig({
   switch (block.type) {
     case "company_logo":
       return (
-        <div className="mt-2 space-y-2 border-t border-zinc-100 pt-2">
+        <div className="mt-2 space-y-2 border-t border-rule pt-2">
           <Label>{t("selectImage")}</Label>
           <Select
             value={block.assetId}
@@ -50,7 +50,7 @@ export function BlockConfig({
 
     case "campaign_banner":
       return (
-        <div className="mt-2 space-y-2 border-t border-zinc-100 pt-2">
+        <div className="mt-2 space-y-2 border-t border-rule pt-2">
           <Label>{t("selectCampaign")}</Label>
           <Select
             value={block.campaignId}
@@ -82,7 +82,7 @@ export function BlockConfig({
 
     case "identity":
       return (
-        <div className="mt-2 space-y-1 border-t border-zinc-100 pt-2">
+        <div className="mt-2 space-y-1 border-t border-rule pt-2">
           <Label>{t("fields")}</Label>
           {IDENTITY_FIELDS.map((field) => (
             <label key={field} className="flex items-center gap-2 text-sm">
@@ -104,7 +104,7 @@ export function BlockConfig({
 
     case "contact_details":
       return (
-        <div className="mt-2 space-y-1 border-t border-zinc-100 pt-2">
+        <div className="mt-2 space-y-1 border-t border-rule pt-2">
           <Label>{t("fields")}</Label>
           {CONTACT_FIELDS.map((field) => (
             <label key={field} className="flex items-center gap-2 text-sm">
@@ -127,7 +127,7 @@ export function BlockConfig({
     case "legal_disclaimer":
     case "custom_text":
       return (
-        <div className="mt-2 border-t border-zinc-100 pt-2">
+        <div className="mt-2 border-t border-rule pt-2">
           <Label>{t("text")}</Label>
           <Input
             value={block.text}
@@ -138,7 +138,7 @@ export function BlockConfig({
 
     case "cta_button":
       return (
-        <div className="mt-2 space-y-2 border-t border-zinc-100 pt-2">
+        <div className="mt-2 space-y-2 border-t border-rule pt-2">
           <div>
             <Label>{t("buttonLabel")}</Label>
             <Input
@@ -158,7 +158,7 @@ export function BlockConfig({
 
     case "social_links":
       return (
-        <div className="mt-2 space-y-2 border-t border-zinc-100 pt-2">
+        <div className="mt-2 space-y-2 border-t border-rule pt-2">
           {block.links.map((link, li) => (
             <div key={li} className="grid grid-cols-2 gap-2">
               <Input
@@ -186,7 +186,7 @@ export function BlockConfig({
 
     case "certifications":
       return (
-        <div className="mt-2 border-t border-zinc-100 pt-2">
+        <div className="mt-2 border-t border-rule pt-2">
           <Label>{t("items")}</Label>
           <Input
             value={block.items.join(", ")}
@@ -202,7 +202,7 @@ export function BlockConfig({
 
     case "profile_photo":
       return (
-        <p className="mt-2 border-t border-zinc-100 pt-2 text-xs text-zinc-500">
+        <p className="mt-2 border-t border-rule pt-2 text-xs text-lead">
           {t("profilePhotoHint")}
         </p>
       );

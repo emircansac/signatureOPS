@@ -14,6 +14,12 @@ function getBaseUrl() {
   return `http://localhost:${process.env.PORT ?? 3000}`;
 }
 
+function orgSlugHeader(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const match = window.location.pathname.match(/\/app\/([^/]+)/);
+  return match?.[1] ? { "x-org-slug": match[1] } : {};
+}
+
 export function TRPCProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
   const [trpcClient] = useState(() =>
@@ -22,6 +28,7 @@ export function TRPCProvider({ children }: { children: React.ReactNode }) {
         httpBatchLink({
           url: `${getBaseUrl()}/api/trpc`,
           transformer: superjson,
+          headers: () => orgSlugHeader(),
         }),
       ],
     }),

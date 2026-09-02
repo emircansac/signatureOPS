@@ -82,13 +82,13 @@ export function AssetLibrary({
     });
   };
 
-  if (isLoading) return <Card className="p-4 text-sm text-zinc-500">{t("loading")}</Card>;
+  if (isLoading) return <Card className="p-4 text-sm text-lead">{t("loading")}</Card>;
 
   return (
     <Card className="space-y-4">
       <div>
         <h3 className="font-semibold">{t("title")}</h3>
-        <p className="text-sm text-zinc-500">{t("subtitle")}</p>
+        <p className="text-sm text-lead">{t("subtitle")}</p>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
@@ -105,7 +105,7 @@ export function AssetLibrary({
               e.target.value = "";
             }}
           />
-          <p className="mt-1 text-xs text-zinc-400">{t("uploadHint")}</p>
+          <p className="mt-1 text-xs text-lead">{t("uploadHint")}</p>
         </div>
         <div>
           <Label>{t("urlAdd")}</Label>
@@ -149,8 +149,8 @@ export function AssetLibrary({
         </Button>
       )}
 
-      {uploading && <p className="text-sm text-blue-600">{t("uploading")}</p>}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {uploading && <p className="text-sm text-lead">{t("uploading")}</p>}
+      {error && <p className="text-sm text-seal">{error}</p>}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {assets?.map((asset) => {
@@ -159,9 +159,9 @@ export function AssetLibrary({
           return (
             <div
               key={asset.id}
-              className={`rounded-lg border p-3 ${isSelected ? "border-blue-500 bg-blue-50" : "border-zinc-200"}`}
+              className={`border p-3 ${isSelected ? "border-ink" : "border-rule"}`}
             >
-              <div className="mb-2 flex h-20 items-center justify-center overflow-hidden rounded bg-zinc-50">
+              <div className="mb-2 flex h-20 items-center justify-center overflow-hidden border border-rule">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={src}
@@ -194,7 +194,7 @@ export function AssetLibrary({
       </div>
 
       {assets?.length === 0 && (
-        <p className="text-sm text-zinc-500">{t("empty")}</p>
+        <p className="text-sm text-lead">{t("empty")}</p>
       )}
     </Card>
   );

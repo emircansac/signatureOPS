@@ -1,12 +1,18 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { auth } from "@/auth";
 
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 const MAX_BYTES = 500_000;
 
 export async function POST(req: Request) {
   try {
+    const session = await auth();
+    if (!session?.orgId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const formData = await req.formData();
     const file = formData.get("file");
 

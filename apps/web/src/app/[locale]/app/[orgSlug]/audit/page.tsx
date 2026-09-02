@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { lintHtml } from "@signatureops/linter";
-import { Badge, Button, Card, Textarea } from "@/components/ui";
+import { Badge, Button, Card, PageHeading, Textarea } from "@/components/ui";
 
 export default function AuditPage() {
   const t = useTranslations("audit");
@@ -17,11 +17,8 @@ export default function AuditPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="text-zinc-500">{t("subtitle")}</p>
-        <p className="mt-1 text-sm text-green-700">{t("privacy")}</p>
-      </div>
+      <PageHeading title={t("title")} subtitle={t("subtitle")} />
+      <p className="mt-1 text-sm text-lead">{t("privacy")}</p>
 
       <Card>
         <Textarea
@@ -45,11 +42,11 @@ export default function AuditPage() {
           </div>
           <h3 className="mb-2 font-medium">{t("issues")}</h3>
           {result.issues.length === 0 ? (
-            <p className="text-green-700">No issues found</p>
+            <p className="text-ink">No issues found</p>
           ) : (
             <ul className="space-y-3">
               {result.issues.map((issue) => (
-                <li key={issue.id} className="rounded-md border border-zinc-100 p-3">
+                <li key={issue.id} className="border border-rule p-3">
                   <div className="flex items-center gap-2">
                     <Badge
                       variant={
@@ -64,7 +61,7 @@ export default function AuditPage() {
                     </Badge>
                     <span className="font-medium">{issue.message}</span>
                   </div>
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="mt-1 text-sm text-lead">
                     {t("remediation")}: {issue.remediation}
                   </p>
                 </li>

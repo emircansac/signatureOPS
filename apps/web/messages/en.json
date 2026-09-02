@@ -1,7 +1,7 @@
 {
   "common": {
     "appName": "SignatureOps",
-    "dashboard": "Dashboard",
+    "dashboard": "Signature panel",
     "templates": "Templates",
     "assets": "Images",
     "rules": "Rules",
@@ -25,14 +25,15 @@
     "copied": "Copied",
     "export": "Export",
     "preview": "Preview",
-    "score": "Quality Score"
+    "score": "Quality Score",
+    "signOut": "Sign out"
   },
   "nav": {
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "management": "Management",
     "managementHint": "Less frequently used tools",
-    "backToPanel": "Back to panel",
+    "backToPanel": "Back to signature panel",
     "desc": {
       "templates": "Design, preview, and copy HTML to paste into Gmail",
       "rules": "Define who gets which signature",
@@ -44,7 +45,7 @@
     }
   },
   "dashboard": {
-    "title": "Control Panel",
+    "title": "Signature panel",
     "subtitle": "Design a signature, copy HTML, paste into Gmail settings",
     "workflow": "How it works",
     "management": "Management",
@@ -83,7 +84,14 @@
     "buttonLabel": "Button label",
     "items": "Items (comma-separated)",
     "profilePhotoHint": "Profile photo comes from directory (user.photoUrl)",
-    "previewUser": "Preview user"
+    "previewUser": "Preview user",
+    "livePreview": "Live preview",
+    "newMessage": "New message",
+    "from": "From",
+    "to": "To",
+    "subject": "Subject",
+    "previewBody": "Hi,\n\nFill in the form on the left to build your signature and see it here, as it would look in an email.\n\nBest",
+    "previewEmpty": "Select a preview user on the left to see the signature."
   },
   "assets": {
     "title": "Brand Assets",
@@ -185,5 +193,61 @@
     "custom_text": "Custom text",
     "spacer": "Spacer",
     "divider": "Divider"
+  },
+  "marketing": {
+    "headline": "A small space, a <line>big opportunity.</line>",
+    "subhead": "Let your signature carry a message, too.",
+    "cta": "Try for free",
+    "signIn": "Sign in",
+    "contact": "Contact",
+    "privacy": "Privacy",
+    "feature1Title": "A panel for your brand",
+    "feature1Body": "Your organization’s logo, colors, and rules are defined in one panel.",
+    "feature2Title": "Every signature is manageable",
+    "feature2Body": "From identity details to campaigns, it updates whenever you want.",
+    "feature3Title": "Gmail in one click",
+    "feature3Body": "Each employee enters their details, then copies and pastes the signature.",
+    "libraryHeadline": "Different emails, different signatures.",
+    "library1Title": "Meeting invite",
+    "library1Function": "Gets the recipient to act in one click.",
+    "library1To": "mehmet.kaya@example.com",
+    "library1Subject": "Meeting request",
+    "library1Body": "Hi Mehmet,\nCould we find a short time to talk?",
+    "library1Context": "Open through September.",
+    "library2Title": "Campaign announcement",
+    "library2Function": "Keeps your announcement in every email.",
+    "library2To": "selin.yilmaz@example.com",
+    "library2Subject": "September summary",
+    "library2Body": "Hi Selin,\nPlease find this month’s summary attached.",
+    "library3Title": "Simple introduction",
+    "library3Function": "Carries the brand identity, plainly and reliably.",
+    "library3To": "can.ozturk@example.com",
+    "library3Subject": "Hello",
+    "library3Body": "Hi Can,\nI’d like to briefly introduce myself.",
+    "mockupTitle": "New message",
+    "mockupTo": "To",
+    "mockupSubject": "Subject",
+    "mockupName": "Ayse Demir",
+    "mockupRole": "Communications manager",
+    "mockupCompany": "Example Inc.",
+    "mockupPhone": "+90 212 555 01 01",
+    "mockupEmail": "ayse.demir@example.com",
+    "mockupCta": "Book a meeting",
+    "mockupBanner": "September webinar — 12 September, registration open",
+    "mockupSend": "Send",
+    "mockupLogoLetter": "E"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signInTitle": "Sign in",
+    "signInHint": "Continue with Google to open your signature panel.",
+    "continueGoogle": "Continue with Google",
+    "goToPanel": "Go to signature panel",
+    "finishSetup": "Create organization",
+    "onboardingTitle": "Create your organization",
+    "onboardingHint": "Your signature panel URL is based on this short name.",
+    "orgName": "Organization name",
+    "orgSlug": "Signature panel address",
+    "createOrg": "Create signature panel"
   }
 }

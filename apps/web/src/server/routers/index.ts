@@ -9,9 +9,11 @@ import {
   type RuleDefinition,
   type TemplateDefinition,
 } from "@signatureops/schema";
-import { publicProcedure, router } from "../trpc";
+import { onboardingProcedure, protectedProcedure, publicProcedure, router } from "../trpc";
 import { toCompileAssetMap, type AssetRecord } from "../lib/assets";
 import { resolvePublicAssetUrl } from "@/lib/asset-url";
+import { isReservedSlug, SlugSchema, slugify } from "@/lib/slug";
+import { TRPCError } from "@trpc/server";
 
 function parseJson<T>(value: string): T {
   return JSON.parse(value) as T;
@@ -94,7 +96,7 @@ function buildCampaignMap(
 }
 
 export const orgRouter = router({
-  get: publicProcedure.query(async ({ ctx }) => {
+  get: protectedProcedure.query(async ({ ctx }) => {
     const orgId = await getOrgId(ctx);
     const org = await ctx.prisma.organization.findUnique({
       where: { id: orgId },
@@ -114,34 +116,36 @@ export const orgRouter = router({
 });
 
 export const usersRouter = router({
-  list: publicProcedure.query(async ({ ctx }) => {
+  list: protectedProcedure.query(async ({ ctx }) => {
     const orgId = await getOrgId(ctx);
     return ctx.prisma.user.findMany({
       where: { orgId },
       orderBy: { displayName: "asc" },
     });
   }),
-  getById: publicProcedure
+  getById: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.prisma.user.findUnique({ where: { id: input.id } });
+      const orgId = await getOrgId(ctx);
+      return ctx.prisma.user.findFirst({ where: { id: input.id, orgId } });
     }),
 });
 
 export const templatesRouter = router({
-  list: publicProcedure.query(async ({ ctx }) => {
+  list: protectedProcedure.query(async ({ ctx }) => {
     const orgId = await getOrgId(ctx);
     return ctx.prisma.template.findMany({
       where: { orgId },
       orderBy: { updatedAt: "desc" },
     });
   }),
-  get: publicProcedure
+  get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
-      return ctx.prisma.template.findUnique({ where: { id: input.id } });
+      const orgId = await getOrgId(ctx);
+      return ctx.prisma.template.findFirst({ where: { id: input.id, orgId } });
     }),
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         name: z.string().min(1),
@@ -159,7 +163,7 @@ export const templatesRouter = router({
         },
       });
     }),
-  update: publicProcedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -168,6 +172,11 @@ export const templatesRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const orgId = await getOrgId(ctx);
+      const existing = await ctx.prisma.template.findFirst({
+        where: { id: input.id, orgId },
+      });
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
       const { id, ...data } = input;
       return ctx.prisma.template.update({
         where: { id },
@@ -178,12 +187,17 @@ export const templatesRouter = router({
         },
       });
     }),
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      const orgId = await getOrgId(ctx);
+      const existing = await ctx.prisma.template.findFirst({
+        where: { id: input.id, orgId },
+      });
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
       return ctx.prisma.template.delete({ where: { id: input.id } });
     }),
-  compilePreview: publicProcedure
+  compilePreview: protectedProcedure
     .input(
       z.object({
         definition: TemplateDefinitionSchema,
@@ -235,19 +249,19 @@ export const templatesRouter = router({
 });
 
 export const rulesRouter = router({
-  list: publicProcedure.query(async ({ ctx }) => {
+  list: protectedProcedure.query(async ({ ctx }) => {
     const orgId = await getOrgId(ctx);
     return ctx.prisma.rule.findMany({
       where: { orgId },
       orderBy: [{ level: "asc" }, { priority: "asc" }],
     });
   }),
-  get: publicProcedure
+  get: protectedProcedure
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       return ctx.prisma.rule.findUnique({ where: { id: input.id } });
     }),
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         name: z.string().min(1),
@@ -273,7 +287,7 @@ export const rulesRouter = router({
         },
       });
     }),
-  update: publicProcedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -299,12 +313,12 @@ export const rulesRouter = router({
         },
       });
     }),
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.rule.delete({ where: { id: input.id } });
     }),
-  reorder: publicProcedure
+  reorder: protectedProcedure
     .input(z.object({ id: z.string(), priority: z.number().int() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.rule.update({
@@ -315,7 +329,7 @@ export const rulesRouter = router({
 });
 
 export const campaignsRouter = router({
-  list: publicProcedure.query(async ({ ctx }) => {
+  list: protectedProcedure.query(async ({ ctx }) => {
     const orgId = await getOrgId(ctx);
     return ctx.prisma.campaign.findMany({
       where: { orgId },
@@ -325,7 +339,7 @@ export const campaignsRouter = router({
 });
 
 export const assetsRouter = router({
-  list: publicProcedure
+  list: protectedProcedure
     .input(z.object({ kind: z.enum(["LOGO", "BANNER", "CERTIFICATION", "PHOTO"]).optional() }).optional())
     .query(async ({ ctx, input }) => {
       const orgId = await getOrgId(ctx);
@@ -337,7 +351,7 @@ export const assetsRouter = router({
         orderBy: { id: "desc" },
       });
     }),
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         kind: z.enum(["LOGO", "BANNER", "CERTIFICATION", "PHOTO"]),
@@ -365,7 +379,7 @@ export const assetsRouter = router({
         },
       });
     }),
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const orgId = await getOrgId(ctx);
@@ -378,7 +392,7 @@ export const assetsRouter = router({
 });
 
 export const simulateRouter = router({
-  run: publicProcedure
+  run: protectedProcedure
     .input(
       z.object({
         userId: z.string(),
@@ -462,7 +476,54 @@ export const lintRouter = router({
     .query(({ input }) => lintHtml(input.html)),
 });
 
+export const authRouter = router({
+  me: publicProcedure.query(({ ctx }) => ctx.session),
+  createOrg: onboardingProcedure
+    .input(
+      z.object({
+        name: z.string().min(2).max(80),
+        slug: z.string().min(2).max(80),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const slug = slugify(input.slug);
+      if (slug.length < SlugSchema.min || !SlugSchema.pattern.test(slug)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid slug" });
+      }
+      if (isReservedSlug(slug)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Slug is reserved" });
+      }
+      const taken = await ctx.prisma.organization.findUnique({ where: { slug } });
+      if (taken) {
+        throw new TRPCError({ code: "CONFLICT", message: "Slug already in use" });
+      }
+
+      const email = ctx.session?.email;
+      if (!email) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Google account has no email" });
+      }
+
+      const org = await ctx.prisma.organization.create({
+        data: {
+          name: input.name.trim(),
+          slug,
+          admins: {
+            create: {
+              email,
+              name: ctx.session?.name ?? email,
+              googleSub: ctx.session?.googleSub,
+              role: "SUPER_ADMIN",
+            },
+          },
+        },
+      });
+
+      return { orgId: org.id, slug: org.slug, name: org.name };
+    }),
+});
+
 export const appRouter = router({
+  auth: authRouter,
   org: orgRouter,
   users: usersRouter,
   templates: templatesRouter,

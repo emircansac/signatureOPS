@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { trpc } from "@/lib/trpc";
-import { Badge, Button, Card, Label, Select } from "@/components/ui";
+import { Badge, Button, Card, Label, PageHeading, Select } from "@/components/ui";
 
 export default function SimulatorPage() {
   const t = useTranslations("simulator");
@@ -50,10 +50,7 @@ export default function SimulatorPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">{t("title")}</h1>
-        <p className="text-zinc-500">{t("subtitle")}</p>
-      </div>
+      <PageHeading title={t("title")} subtitle={t("subtitle")} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -109,7 +106,7 @@ export default function SimulatorPage() {
               {t("run")}
             </Button>
             {simulateMutation.error && (
-              <p className="text-sm text-red-600">{simulateMutation.error.message}</p>
+              <p className="text-sm text-seal">{simulateMutation.error.message}</p>
             )}
           </div>
         </Card>
@@ -117,11 +114,11 @@ export default function SimulatorPage() {
         <Card>
           <h2 className="mb-4 font-semibold">{t("output")}</h2>
           {!result ? (
-            <p className="text-zinc-500">Run simulation to see results</p>
+            <p className="text-lead">Run simulation to see results</p>
           ) : (
             <div className="space-y-4">
               <div>
-                <p className="text-sm text-zinc-500">{t("winningRule")}</p>
+                <p className="text-sm text-lead">{t("winningRule")}</p>
                 <p className="font-medium">
                   {result.winningRule ?? t("noWinningRule")}
                 </p>
@@ -135,9 +132,9 @@ export default function SimulatorPage() {
 
               {result.conflicts.length > 0 && (
                 <div>
-                  <p className="mb-1 text-sm font-medium text-yellow-700">{t("conflicts")}</p>
+                  <p className="mb-1 text-sm font-medium text-ink">{t("conflicts")}</p>
                   {result.conflicts.map((c, i) => (
-                    <p key={i} className="text-sm text-zinc-600">
+                    <p key={i} className="text-sm text-lead">
                       {c.message}
                     </p>
                   ))}
@@ -146,7 +143,7 @@ export default function SimulatorPage() {
 
               {result.missingData.length > 0 && (
                 <div>
-                  <p className="mb-1 text-sm font-medium text-orange-700">{t("missingData")}</p>
+                  <p className="mb-1 text-sm font-medium text-ink">{t("missingData")}</p>
                   <div className="flex flex-wrap gap-1">
                     {result.missingData.map((m) => (
                       <Badge key={m} variant="warning">
@@ -169,7 +166,7 @@ export default function SimulatorPage() {
               {result.rulesEvaluated.map((step) => (
                 <div
                   key={step.ruleId}
-                  className="flex items-start gap-3 rounded-md border border-zinc-100 p-3"
+                  className="flex items-start gap-3 border border-rule p-3"
                 >
                   <span className="text-lg">
                     {step.excluded ? "○" : step.matched ? "✓" : "×"}
@@ -181,7 +178,7 @@ export default function SimulatorPage() {
                         {step.level} P{step.priority}
                       </Badge>
                     </p>
-                    <p className="text-sm text-zinc-500">{step.reason}</p>
+                    <p className="text-sm text-lead">{step.reason}</p>
                     {step.ruleId === result.winningRule && (
                       <Badge variant="success" className="mt-1">
                         Winner
@@ -203,14 +200,14 @@ export default function SimulatorPage() {
               </div>
               {result.renderedHtml && (
                 <div
-                  className="overflow-auto rounded border border-zinc-100 p-4"
+                  className="overflow-auto border border-rule p-4"
                   dangerouslySetInnerHTML={{ __html: result.renderedHtml }}
                 />
               )}
             </Card>
             <Card>
               <h2 className="mb-4 font-semibold">{t("plainText")}</h2>
-              <pre className="whitespace-pre-wrap text-sm text-zinc-600">
+              <pre className="whitespace-pre-wrap font-mono text-sm text-lead">
                 {result.plainText}
               </pre>
             </Card>

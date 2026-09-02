@@ -18,6 +18,10 @@ npx pnpm@9.15.0 dev
 
 Open http://localhost:3000/tr
 
+Copy `.env.example` into `apps/web/.env.local` and set `AUTH_SECRET`, `GOOGLE_CLIENT_ID`, and `GOOGLE_CLIENT_SECRET`. Google OAuth redirect: `http://localhost:3000/api/auth/callback/google`.
+
+Public site: `/tr` (sign up / sign in). Each org admin panel: `/tr/app/{slug}`.
+
 ## Structure
 
 ```
