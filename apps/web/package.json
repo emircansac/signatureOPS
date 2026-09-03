@@ -10,7 +10,7 @@
     "test": "playwright test",
     "test:e2e": "playwright test",
     "test:unit": "vitest run",
-    "postinstall": "playwright install chromium"
+    "postinstall": "node -e \"if (!process.env.VERCEL && !process.env.CI) require('child_process').execSync('playwright install chromium', {stdio:'inherit', shell:true})\""
   },
   "dependencies": {
     "@prisma/client": "^6.11.1",
