@@ -44,14 +44,13 @@ async function attachOrg(token: JWT): Promise<JWT> {
 const nextAuth = NextAuth({
   ...authConfig,
   callbacks: {
-    async jwt({ token, account, profile, trigger }) {
+    async jwt({ token, account, profile }) {
       if (account?.provider === "google" && profile?.sub) {
         token.googleSub = profile.sub;
         if (profile.email) token.email = profile.email;
         if (profile.name) token.name = profile.name;
-        return attachOrg(token);
       }
-      if (trigger === "update") {
+      if (token.googleSub || token.email) {
         return attachOrg(token);
       }
       return token;

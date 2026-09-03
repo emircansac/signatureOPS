@@ -74,9 +74,13 @@ export default function OnboardingPage({
           <Button
             disabled={!name.trim() || !suggested || createOrg.isPending}
             onClick={async () => {
-              const result = await createOrg.mutateAsync({ name, slug: suggested });
-              await update();
-              router.replace(`/app/${result.slug}`);
+              try {
+                const result = await createOrg.mutateAsync({ name, slug: suggested });
+                await update();
+                window.location.assign(`/${locale}/app/${result.slug}`);
+              } catch {
+                /* error is shown via createOrg.error */
+              }
             }}
           >
             {createOrg.isPending ? "..." : t("createOrg")}
