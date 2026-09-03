@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/routing";
+import { signOut } from "next-auth/react";
 import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public-header";
 import { Button, Input, Label } from "@/components/ui";
@@ -85,6 +86,13 @@ export default function OnboardingPage({
           >
             {createOrg.isPending ? "..." : t("createOrg")}
           </Button>
+          <button
+            type="button"
+            className="text-sm text-lead hover:text-ink"
+            onClick={() => signOut({ callbackUrl: `/${locale}` })}
+          >
+            {tc("signOut")}
+          </button>
         </div>
       </main>
     </div>
