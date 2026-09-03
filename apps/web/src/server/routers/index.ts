@@ -879,15 +879,16 @@ export const authRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const email = ctx.session?.email;
-      if (!email) {
+      const session = ctx.session;
+      const email = session?.email;
+      if (!session || !email) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Google account has no email" });
       }
 
       const existingAdmin = await ctx.prisma.adminUser.findFirst({
         where: {
           OR: [
-            ...(ctx.session.googleSub ? [{ googleSub: ctx.session.googleSub }] : []),
+            ...(session.googleSub ? [{ googleSub: session.googleSub }] : []),
             { email },
           ],
         },
@@ -920,8 +921,8 @@ export const authRouter = router({
           admins: {
             create: {
               email,
-              name: ctx.session?.name ?? email,
-              googleSub: ctx.session.googleSub,
+              name: session.name ?? email,
+              googleSub: session.googleSub,
               role: "SUPER_ADMIN",
             },
           },
