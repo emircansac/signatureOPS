@@ -8,6 +8,13 @@ const handler = (req: Request) =>
     req,
     router: appRouter,
     createContext: () => createTRPCContext({ req }),
+    onError({ error }) {
+      if (process.env.SENTRY_DSN) {
+        void import("@sentry/nextjs").then((Sentry) => Sentry.captureException(error));
+      } else {
+        console.error(error);
+      }
+    },
   });
 
 export { handler as GET, handler as POST };

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>SignatureOps</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        padding: 16px;
+        color: #1c2b3a;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>SignatureOps</h1>
+    <p>
+      Microsoft signatures are applied in Outlook at compose time. They are not stored on the
+      mailbox and are not guaranteed on every outbound message.
+    </p>
+    <button id="apply" type="button">Apply signature now</button>
+    <p id="status"></p>
+    <script type="module" src="/src/taskpane.ts"></script>
+  </body>
+</html>

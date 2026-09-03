@@ -7,11 +7,16 @@ const RESERVED = new Set([
   "signup",
   "templates",
   "assets",
-  "audit",
   "directory",
   "campaigns",
   "rules",
-  "simulate",
+  "deploy",
+  "health",
+  "settings",
+  "davet",
+  "gizlilik",
+  "privacy",
+  "addin",
 ]);
 
 export function slugify(input: string): string {

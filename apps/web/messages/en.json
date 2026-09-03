@@ -14,7 +14,6 @@
     "edit": "Edit",
     "create": "Create",
     "loading": "Loading...",
-    "comingSoon": "Coming soon",
     "actions": "Actions",
     "name": "Name",
     "status": "Status",
@@ -25,6 +24,8 @@
     "export": "Export",
     "preview": "Preview",
     "score": "Quality Score",
+    "deploy": "Deployment",
+    "settings": "Settings",
     "signOut": "Sign out"
   },
   "nav": {
@@ -39,7 +40,9 @@
       "simulate": "Test rules and preview output",
       "assets": "Logo, colors, and signature images",
       "directory": "Employee title, phone, and photo",
-      "campaigns": "Date-ranged banner campaigns"
+      "campaigns": "Date-ranged banner campaigns",
+      "deploy": "Gmail deploy health and directory sync",
+      "settings": "Workspace connection, add-in manifests, admin invites"
     }
   },
   "dashboard": {
@@ -346,9 +349,11 @@
   },
   "directory": {
     "title": "Directory",
-    "subtitle": "Person fields — title, mobile, photo. Add people by hand or import a spreadsheet. Sync coming soon.",
+    "subtitle": "Person fields — title, mobile, photo. Add people by hand, import a spreadsheet, or sync Google Workspace / Microsoft 365.",
     "personFieldsHint": "These values come from the employee record, not Identity. The photo is personal; if it is missing, the signature uses the default brand image from Identity.",
-    "syncDisabled": "Google/Microsoft sync coming soon",
+    "syncDisabled": "Directory sync requires Workspace / Entra connection in Settings",
+    "syncGoogle": "Sync Google",
+    "syncMicrosoft": "Sync Microsoft",
     "photo": "Photo",
     "name": "Name",
     "jobTitle": "Title",
@@ -521,5 +526,68 @@
     "orgName": "Organization name",
     "orgSlug": "Signature panel address",
     "createOrg": "Create signature panel"
+  },
+  "deploy": {
+    "title": "Deployment health",
+    "subtitle": "Google signatures are stored in Gmail. Microsoft signatures are applied in Outlook at compose time.",
+    "deployGmail": "Deploy to Gmail",
+    "syncGoogle": "Sync Google Directory",
+    "syncMicrosoft": "Sync Microsoft Directory",
+    "usersDiscovered": "People discovered",
+    "gmailOk": "Gmail updates OK",
+    "gmailFailed": "Gmail failures",
+    "lastSync": "Last directory sync",
+    "addinNote": "Outlook add-in coverage depends on client, admin deployment, and network at compose time.",
+    "addinAssigned": "Microsoft tenant is saved.",
+    "addinNotAssigned": "No Microsoft tenant yet — download the manifest from Settings.",
+    "missingFields": "People missing title or photo",
+    "none": "None",
+    "recent": "Recent deployments",
+    "colUser": "Person",
+    "colProvider": "Provider",
+    "colError": "Error",
+    "sanitized": "Gmail sanitized HTML"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Workspace connection, Outlook add-in, and admin invites",
+    "googleTitle": "Google Workspace",
+    "googleHint": "A Workspace admin must add the service account client ID below under Domain-wide delegation with the listed scopes. Then save the admin email to impersonate.",
+    "workspaceDomain": "Primary domain",
+    "impersonateEmail": "Admin email to impersonate",
+    "microsoftTenant": "Microsoft tenant ID",
+    "saReady": "Platform service account",
+    "yes": "Ready",
+    "no": "Not configured",
+    "clientId": "Service account client ID (for DWD)",
+    "scopes": "Required DWD scopes",
+    "addinTitle": "Outlook add-in",
+    "addinHint": "Deploy the unified manifest to Outlook on the web and new Windows. Use the add-in-only manifest for Mac and mobile. Signatures are applied at compose time, not stored on the mailbox.",
+    "unifiedManifest": "Download unified manifest (web / new Windows)",
+    "addinOnlyManifest": "Download add-in-only manifest (Mac / mobile)",
+    "admins": "Admins",
+    "inviteEmail": "Invite email",
+    "invite": "Create invite link",
+    "inviteLink": "Invite URL",
+    "revoke": "Revoke"
+  },
+  "invite": {
+    "title": "Admin invite",
+    "subtitle": "Join this organization’s signature panel",
+    "invalid": "This invite is invalid or expired.",
+    "org": "Organization",
+    "role": "Role",
+    "email": "Invited email",
+    "accept": "Accept invite",
+    "signIn": "Sign in with Google to accept",
+    "loading": "Loading…"
+  },
+  "privacy": {
+    "title": "Privacy",
+    "signIn": "Sign in",
+    "p1": "SignatureOps stores organization admins, directory fields you enter or sync, templates, rules, campaigns, and brand assets. We do not route, relay, read, or store the bodies of email messages.",
+    "p2": "Google signatures are written to Gmail sendAs settings when you deploy. Microsoft signatures are applied in the Outlook client at compose time via an add-in; they are not written through Microsoft Graph.",
+    "p3": "Uploaded images are stored in object storage so they can be loaded by email clients. Admin sign-in uses Google OAuth. Invite links expire after seven days.",
+    "p4": "Contact the organization that invited you for questions about their employee data."
   }
 }

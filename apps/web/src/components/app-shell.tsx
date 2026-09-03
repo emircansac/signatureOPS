@@ -43,6 +43,8 @@ export function AppShell({
     { href: orgPath(orgSlug, "/campaigns"), key: "campaigns" as const },
     { href: orgPath(orgSlug, "/rules"), key: "rules" as const },
     { href: orgPath(orgSlug, "/simulate"), key: "simulate" as const },
+    { href: orgPath(orgSlug, "/deploy"), key: "deploy" as const },
+    { href: orgPath(orgSlug, "/settings"), key: "settings" as const },
   ];
 
   useEffect(() => {

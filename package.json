@@ -9,8 +9,10 @@
     "lint": "turbo lint",
     "db:generate": "pnpm --filter @signatureops/db generate",
     "db:migrate": "pnpm --filter @signatureops/db migrate",
+    "db:migrate:deploy": "pnpm --filter @signatureops/db migrate:deploy",
     "db:seed": "pnpm --filter @signatureops/db seed",
     "db:push": "pnpm --filter @signatureops/db push",
+    "db:up": "docker compose up -d",
     "db:migrate:assets": "pnpm --filter @signatureops/db migrate:assets"
   },
   "devDependencies": {

@@ -14,7 +14,6 @@
     "edit": "Düzenle",
     "create": "Oluştur",
     "loading": "Yükleniyor...",
-    "comingSoon": "Yakında",
     "actions": "İşlemler",
     "name": "Ad",
     "status": "Durum",
@@ -25,6 +24,8 @@
     "export": "Dışa Aktar",
     "preview": "Önizleme",
     "score": "Quality Score",
+    "deploy": "Dağıtım",
+    "settings": "Ayarlar",
     "signOut": "Çıkış"
   },
   "nav": {
@@ -39,7 +40,9 @@
       "simulate": "Kural sonucunu test et ve önizle",
       "assets": "Logo, renkler ve imza görselleri",
       "directory": "Çalışanların ünvan, telefon ve fotoğrafı",
-      "campaigns": "Tarih aralıklı banner kampanyaları"
+      "campaigns": "Tarih aralıklı banner kampanyaları",
+      "deploy": "Gmail dağıtım sağlığı ve dizin senkronu",
+      "settings": "Workspace bağlantısı, add-in manifestleri, yönetici daveti"
     }
   },
   "dashboard": {
@@ -346,9 +349,11 @@
   },
   "directory": {
     "title": "Dizin",
-    "subtitle": "Kişiye özel alanlar — ünvan, mobil, fotoğraf. Elle ekleyin veya dosyadan içe aktarın. Sync yakında.",
+    "subtitle": "Kişiye özel alanlar — ünvan, mobil, fotoğraf. Elle ekleyin, dosyadan içe aktarın veya Google / Microsoft senkronu kullanın.",
     "personFieldsHint": "Bu değerler Kimlik’ten değil, çalışanın dizin kaydından gelir. Profil fotoğrafı kişiye özeldir; fotoğrafı yoksa imzada Kimlik’teki varsayılan marka görseli kullanılır.",
-    "syncDisabled": "Google/Microsoft senkronizasyonu yakında",
+    "syncDisabled": "Dizin senkronu Ayarlar’daki Workspace / Entra bağlantısını gerektirir",
+    "syncGoogle": "Google senkronu",
+    "syncMicrosoft": "Microsoft senkronu",
     "photo": "Fotoğraf",
     "name": "Ad",
     "jobTitle": "Pozisyon",
@@ -521,5 +526,68 @@
     "orgName": "Kurum adı",
     "orgSlug": "İmza paneli adresi",
     "createOrg": "İmza panelini oluştur"
+  },
+  "deploy": {
+    "title": "Dağıtım sağlığı",
+    "subtitle": "Google imzaları Gmail’de depolanır. Microsoft imzaları Outlook’ta ileti yazılırken uygulanır.",
+    "deployGmail": "Gmail’e dağıt",
+    "syncGoogle": "Google dizinini senkronize et",
+    "syncMicrosoft": "Microsoft dizinini senkronize et",
+    "usersDiscovered": "Keşfedilen kişiler",
+    "gmailOk": "Gmail güncellemesi tamam",
+    "gmailFailed": "Gmail hataları",
+    "lastSync": "Son dizin senkronu",
+    "addinNote": "Outlook add-in kapsamı istemciye, yönetici dağıtımına ve ileti yazılırken ağa bağlıdır.",
+    "addinAssigned": "Microsoft kiracısı kayıtlı.",
+    "addinNotAssigned": "Microsoft kiracısı yok — manifesti Ayarlar’dan indirin.",
+    "missingFields": "Ünvanı veya fotoğrafı eksik kişiler",
+    "none": "Yok",
+    "recent": "Son dağıtımlar",
+    "colUser": "Kişi",
+    "colProvider": "Sağlayıcı",
+    "colError": "Hata",
+    "sanitized": "Gmail HTML’i sadeleştirdi"
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "subtitle": "Workspace bağlantısı, Outlook add-in ve yönetici davetleri",
+    "googleTitle": "Google Workspace",
+    "googleHint": "Workspace yöneticisi, aşağıdaki servis hesabı istemci kimliğini Domain-wide delegation’a listedeki kapsamlarla eklemelidir. Sonra taklit edilecek yönetici e-postasını kaydedin.",
+    "workspaceDomain": "Birincil alan adı",
+    "impersonateEmail": "Taklit edilecek yönetici e-postası",
+    "microsoftTenant": "Microsoft kiracı kimliği",
+    "saReady": "Platform servis hesabı",
+    "yes": "Hazır",
+    "no": "Yapılandırılmamış",
+    "clientId": "Servis hesabı istemci kimliği (DWD için)",
+    "scopes": "Gerekli DWD kapsamları",
+    "addinTitle": "Outlook add-in",
+    "addinHint": "Web ve yeni Windows Outlook için unified manifesti dağıtın. Mac ve mobil için add-in-only manifest kullanın. İmzalar ileti yazılırken uygulanır; postakutuya yazılmaz.",
+    "unifiedManifest": "Unified manifesti indir (web / yeni Windows)",
+    "addinOnlyManifest": "Add-in-only manifesti indir (Mac / mobil)",
+    "admins": "Yöneticiler",
+    "inviteEmail": "Davet e-postası",
+    "invite": "Davet bağlantısı oluştur",
+    "inviteLink": "Davet URL’si",
+    "revoke": "İptal"
+  },
+  "invite": {
+    "title": "Yönetici daveti",
+    "subtitle": "Bu kurumun imza paneline katılın",
+    "invalid": "Bu davet geçersiz veya süresi dolmuş.",
+    "org": "Kurum",
+    "role": "Rol",
+    "email": "Davet edilen e-posta",
+    "accept": "Daveti kabul et",
+    "signIn": "Kabul etmek için Google ile giriş yapın",
+    "loading": "Yükleniyor…"
+  },
+  "privacy": {
+    "title": "Gizlilik",
+    "signIn": "Giriş Yap",
+    "p1": "SignatureOps, kurum yöneticilerini, girdiğiniz veya senkronize ettiğiniz dizin alanlarını, şablonları, kuralları, kampanyaları ve marka varlıklarını saklar. E-posta ileti gövdelerini iletmez, okumaz veya saklamaz.",
+    "p2": "Google imzaları dağıtımda Gmail sendAs ayarlarına yazılır. Microsoft imzaları Graph ile yazılmaz; Outlook add-in ile ileti yazılırken uygulanır.",
+    "p3": "Yüklenen görseller, e-posta istemcilerinin yükleyebilmesi için nesne depolamada tutulur. Yönetici girişi Google OAuth kullanır. Davet bağlantıları yedi gün sonra dolar.",
+    "p4": "Çalışan verileriyle ilgili sorular için sizi davet eden kuruma başvurun."
   }
 }

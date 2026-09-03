@@ -47,6 +47,8 @@ export default function DirectoryPage() {
   const tc = useTranslations("common");
   const utils = trpc.useUtils();
   const { data: users, isLoading } = trpc.users.list.useQuery();
+  const syncGoogle = trpc.deploy.syncGoogle.useMutation();
+  const syncMicrosoft = trpc.deploy.syncMicrosoft.useMutation();
   const [editing, setEditing] = useState<DirectoryPerson | null | "new">(null);
   const [importing, setImporting] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<DirectoryPerson | null>(null);
@@ -73,9 +75,24 @@ export default function DirectoryPage() {
           <PageHeading title={t("title")} subtitle={t("subtitle")} />
           <p className="mt-2 max-w-2xl text-sm leading-6 text-lead">{t("personFieldsHint")}</p>
         </div>
-        <span title={t("syncDisabled")}>
-          <Badge>Sync — Yakında</Badge>
-        </span>
+        <div className="flex flex-col items-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => syncGoogle.mutate()}
+            disabled={syncGoogle.isPending}
+          >
+            {t("syncGoogle")}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => syncMicrosoft.mutate()}
+            disabled={syncMicrosoft.isPending}
+          >
+            {t("syncMicrosoft")}
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">

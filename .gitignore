@@ -2,12 +2,15 @@ node_modules
 dist
 .next
 .turbo
+.pnpm-store
 .env
 .env.local
 *.db
 *.db-journal
+*.tsbuildinfo
 coverage
 apps/web/test-results
-# Ignore uploaded files but keep folder
 apps/web/public/uploads/*
 !apps/web/public/uploads/.gitkeep
+apps/web/public/addin/**
+!apps/web/public/addin/.gitkeep

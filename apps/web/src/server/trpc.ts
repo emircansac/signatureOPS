@@ -3,6 +3,7 @@ import superjson from "superjson";
 import { prisma } from "@signatureops/db";
 import { auth } from "@/auth";
 import type { Session } from "next-auth";
+import { isSuperAdmin } from "@/lib/rbac";
 
 export type SessionUser = {
   adminUserId: string | null;
@@ -35,7 +36,6 @@ export const createTRPCContext = async (opts?: { req?: Request }) => {
   return {
     prisma,
     orgId: sessionUser?.orgId ?? null,
-    actor: sessionUser?.email ?? "anonymous",
     session: sessionUser,
     headerSlug,
   };
@@ -69,7 +69,21 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   });
 });
 
-export const onboardingProcedure = t.procedure.use(({ ctx, next }) => {
+export const superAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (!isSuperAdmin(ctx.session.role)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "SUPER_ADMIN_REQUIRED" });
+  }
+  return next({ ctx });
+});
+
+export const signedInProcedure = t.procedure.use(({ ctx, next }) => {
+  if (!ctx.session?.email && !ctx.session?.googleSub) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  return next({ ctx });
+});
+
+export const onboardingProcedure = signedInProcedure.use(({ ctx, next }) => {
   if (!ctx.session?.email && !ctx.session?.googleSub) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }

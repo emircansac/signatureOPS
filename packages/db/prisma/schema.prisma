@@ -3,14 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
-}
-
-enum Provider {
-  GOOGLE
-  MICROSOFT
-  BOTH
 }
 
 enum RuleLevel {
@@ -28,27 +22,41 @@ enum AssetKind {
   ICON
 }
 
-enum DeployStatus {
-  PENDING
-  SUCCESS
-  FAILED
-  SKIPPED
-}
-
 enum AdminRole {
   SUPER_ADMIN
   CONTENT_MANAGER
 }
 
+enum DirectorySource {
+  MANUAL
+  GOOGLE
+  MICROSOFT
+}
+
+enum Provider {
+  GOOGLE
+  MICROSOFT
+}
+
+enum DeployStatus {
+  PENDING
+  RUNNING
+  OK
+  FAILED
+  PARTIAL
+}
+
 model Organization {
-  id                      String   @id @default(cuid())
-  name                    String
-  slug                    String   @unique
-  provider                Provider @default(BOTH)
-  brandColors             String   @default("[]")
-  socialIconMode          String   @default("standard")
-  onboardingSkipCampaign  Boolean  @default(false)
-  createdAt               DateTime @default(now())
+  id                     String   @id @default(cuid())
+  name                   String
+  slug                   String   @unique
+  brandColors            String   @default("[]")
+  socialIconMode         String   @default("standard")
+  onboardingSkipCampaign Boolean  @default(false)
+  googleWorkspaceDomain  String?
+  googleImpersonateEmail String?
+  microsoftTenantId      String?
+  createdAt              DateTime @default(now())
 
   users       User[]
   groups      Group[]
@@ -56,9 +64,11 @@ model Organization {
   rules       Rule[]
   campaigns   Campaign[]
   brandAssets BrandAsset[]
+  admins      AdminUser[]
+  invites     AdminInvite[]
   deployments Deployment[]
   auditEvents AuditEvent[]
-  admins      AdminUser[]
+  syncState   SyncState?
 }
 
 model AdminUser {
@@ -75,10 +85,25 @@ model AdminUser {
   @@index([googleSub])
 }
 
+model AdminInvite {
+  id         String    @id @default(cuid())
+  orgId      String
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  email      String
+  role       AdminRole @default(CONTENT_MANAGER)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdBy  String
+  createdAt  DateTime  @default(now())
+
+  @@index([orgId, email])
+}
+
 model User {
-  id            String   @id @default(cuid())
+  id            String          @id @default(cuid())
   orgId         String
-  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  org           Organization    @relation(fields: [orgId], references: [id], onDelete: Cascade)
   externalId    String
   displayName   String
   jobTitle      String?
@@ -88,11 +113,13 @@ model User {
   mobile        String?
   officePhone   String?
   photoUrl      String?
+  sendAsAliases String          @default("[]")
+  source        DirectorySource @default(MANUAL)
   managerId     String?
-  attributes    String   @default("{}")
-  sendAsAliases String   @default("[]")
+  deployments   Deployment[]
 
   @@unique([orgId, externalId])
+  @@index([orgId, email])
 }
 
 model Group {
@@ -102,20 +129,20 @@ model Group {
   externalId String
   name       String
   memberIds  String @default("[]")
+  source     DirectorySource @default(MANUAL)
 
   @@unique([orgId, externalId])
 }
 
 model Template {
-  id            String @id @default(cuid())
-  orgId         String
-  org           Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  name          String
-  definition    String
-  compatibility String @default("{}")
-  version       Int    @default(1)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id         String   @id @default(cuid())
+  orgId      String
+  org        Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name       String
+  definition String
+  version    Int      @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 model Rule {
@@ -145,7 +172,6 @@ model Campaign {
   ctaLink             String?
   logoOverrideAssetId String?
   templateIds         String   @default("[]")
-  targeting           String   @default("{}")
 }
 
 model BrandAsset {
@@ -165,25 +191,46 @@ model BrandAsset {
 }
 
 model Deployment {
-  id               String       @id @default(cuid())
-  orgId            String
-  org              Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  userId           String
-  provider         Provider
-  status           DeployStatus @default(PENDING)
-  compiledHtmlHash String?
-  sanitizedDiff    String?
-  error            String?
-  attempt          Int          @default(0)
-  updatedAt        DateTime     @updatedAt
+  id                String       @id @default(cuid())
+  orgId             String
+  org               Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId            String?
+  user              User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  provider          Provider
+  status            DeployStatus @default(PENDING)
+  compiledHtmlHash  String?
+  sanitizedDiff     String?
+  error             String?
+  attempt           Int          @default(0)
+  sendAsEmail       String?
+  inngestRunId      String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([orgId, provider, status])
+  @@index([orgId, createdAt])
 }
 
 model AuditEvent {
-  id     String   @id @default(cuid())
-  orgId  String
-  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  actor  String
-  action String
-  payload String  @default("{}")
-  at     DateTime @default(now())
+  id      String       @id @default(cuid())
+  orgId   String
+  org     Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  actor   String
+  action  String
+  payload String       @default("{}")
+  at      DateTime     @default(now())
+
+  @@index([orgId, at])
+}
+
+model SyncState {
+  id                   String       @id @default(cuid())
+  orgId                String       @unique
+  org                  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  lastGoogleSyncAt     DateTime?
+  lastMicrosoftSyncAt  DateTime?
+  googleError          String?
+  microsoftError       String?
+  googleUserCount      Int          @default(0)
+  microsoftUserCount   Int          @default(0)
 }

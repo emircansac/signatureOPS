@@ -37,18 +37,6 @@ export function formatPhone(value: string): string {
   return value;
 }
 
-export function validateUrl(value: string): string {
-  try {
-    const url = new URL(value);
-    if (url.protocol !== "https:" && url.protocol !== "http:" && url.protocol !== "mailto:" && url.protocol !== "tel:") {
-      return value;
-    }
-    return url.toString();
-  } catch {
-    return value;
-  }
-}
-
 export const defaultPlaceholderResolver: PlaceholderResolver = (token, context) => {
   const trimmed = token.trim();
   if (!KNOWN_PATHS.has(trimmed)) return "";

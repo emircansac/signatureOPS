@@ -36,8 +36,14 @@ const executiveTemplate = {
 };
 
 async function main() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("db:seed is blocked in production");
+  }
+
   await prisma.auditEvent.deleteMany();
   await prisma.deployment.deleteMany();
+  await prisma.adminInvite.deleteMany();
+  await prisma.syncState.deleteMany();
   await prisma.rule.deleteMany();
   await prisma.template.deleteMany();
   await prisma.campaign.deleteMany();
@@ -51,7 +57,6 @@ async function main() {
     data: {
       name: "Acme Corp",
       slug: "acme",
-      provider: "BOTH",
       brandColors: JSON.stringify([
         { id: "color-1c2b3a", hex: "#1C2B3A", label: "Mürekkep" },
         { id: "color-a63d2f", hex: "#A63D2F", label: "Vurgu" },
@@ -107,7 +112,6 @@ async function main() {
       startDate: new Date("2026-03-01T12:00:00.000Z"),
       endDate: new Date("2026-06-30T12:00:00.000Z"),
       slogan: "Spring campaign",
-      targeting: JSON.stringify({ departments: ["Marketing", "Sales"] }),
       templateIds: JSON.stringify([]),
     },
   });
@@ -140,7 +144,6 @@ async function main() {
         officePhone: u.officePhone,
         photoUrl: u.photoUrl,
         sendAsAliases: JSON.stringify([u.email]),
-        attributes: JSON.stringify({}),
       },
     });
     createdUsers.push(user);
@@ -172,7 +175,6 @@ async function main() {
       orgId: org.id,
       name: "Default Signature",
       definition: JSON.stringify(defaultTemplate),
-      compatibility: JSON.stringify({ outlookSafe: true, darkMode: false, mobileWidth: 320 }),
     },
   });
 
@@ -182,7 +184,6 @@ async function main() {
       orgId: org.id,
       name: "Sales External",
       definition: JSON.stringify(salesTemplate),
-      compatibility: JSON.stringify({ outlookSafe: true, darkMode: false, mobileWidth: 400 }),
     },
   });
 
@@ -192,7 +193,6 @@ async function main() {
       orgId: org.id,
       name: "Executive",
       definition: JSON.stringify(executiveTemplate),
-      compatibility: JSON.stringify({ outlookSafe: true, darkMode: true, mobileWidth: 320 }),
     },
   });
 

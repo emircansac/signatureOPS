@@ -16,5 +16,10 @@ export default defineConfig({
     command: "pnpm dev",
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
+    env: {
+      ...process.env,
+      AUTH_BYPASS: "true",
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+    },
   },
 });

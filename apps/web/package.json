@@ -14,6 +14,10 @@
   },
   "dependencies": {
     "@prisma/client": "^6.11.1",
+    "@aws-sdk/client-s3": "^3.864.0",
+    "@sentry/nextjs": "^9.40.0",
+    "@signatureops/adapters-google": "workspace:*",
+    "@signatureops/adapters-microsoft": "workspace:*",
     "@signatureops/compiler": "workspace:*",
     "@signatureops/db": "workspace:*",
     "@signatureops/linter": "workspace:*",
@@ -26,6 +30,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.525.0",
+    "inngest": "^3.40.1",
     "next": "^15.3.5",
     "next-auth": "5.0.0-beta.32",
     "next-intl": "^4.3.4",
@@ -38,6 +43,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.53.2",
+    "@signatureops/outlook-addin": "workspace:*",
     "@tailwindcss/postcss": "^4.1.11",
     "@types/node": "^24.0.10",
     "@types/react": "^19.1.8",

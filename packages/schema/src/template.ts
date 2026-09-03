@@ -138,14 +138,6 @@ export const TemplateDefinitionSchema = z.object({
 
 export type TemplateDefinition = z.infer<typeof TemplateDefinitionSchema>;
 
-export const TemplateCompatibilitySchema = z.object({
-  outlookSafe: z.boolean().default(true),
-  darkMode: z.boolean().default(false),
-  mobileWidth: z.number().int().positive().default(320),
-});
-
-export type TemplateCompatibility = z.infer<typeof TemplateCompatibilitySchema>;
-
 const SOCIAL_ALIASES: Record<string, SocialPlatformId> = {
   linkedin: "linkedin",
   "linked-in": "linkedin",

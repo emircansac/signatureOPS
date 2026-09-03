@@ -132,9 +132,9 @@ export default async function LandingPage({
             <a href="#iletisim" className="hover:text-ink">
               {t("contact")}
             </a>
-            <a href="#gizlilik" className="hover:text-ink">
+            <Link href="/gizlilik" className="hover:text-ink">
               {t("privacy")}
-            </a>
+            </Link>
           </div>
         </div>
       </footer>

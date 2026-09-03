@@ -33,10 +33,3 @@ export function lintHtml(html: string, options: LintOptions = {}): LintResult {
     passed: !hasErrors && score >= 70,
   };
 }
-
-export function lintTemplateHtml(
-  html: string,
-  options: LintOptions = {},
-): LintResult {
-  return lintHtml(html, options);
-}

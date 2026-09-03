@@ -59,16 +59,6 @@ export const RuleDefinitionSchema = z.object({
 
 export type RuleDefinition = z.infer<typeof RuleDefinitionSchema>;
 
-export const SimulateInputSchema = z.object({
-  userId: z.string(),
-  sendingAlias: z.string().optional(),
-  messageType: z.enum(["new", "reply"]).default("new"),
-  recipientType: z.enum(["internal", "external"]).default("external"),
-  at: z.string().datetime().optional(),
-});
-
-export type SimulateInput = z.infer<typeof SimulateInputSchema>;
-
 export function parseRuleDefinition(input: unknown): RuleDefinition {
   return RuleDefinitionSchema.parse(input);
 }

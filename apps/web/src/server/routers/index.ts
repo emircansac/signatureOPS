@@ -1,19 +1,21 @@
 import { z } from "zod";
 import { compile } from "@signatureops/compiler";
 import { lintHtml } from "@signatureops/linter";
-import { simulate } from "@signatureops/rules";
 import {
   collectTemplateAssetIds,
   parseTemplateDefinition,
   RuleDefinitionSchema,
   TemplateDefinitionInputSchema,
   TemplateDefinitionSchema,
-  type RuleDefinition,
   type TemplateDefinition,
 } from "@signatureops/schema";
-import { onboardingProcedure, protectedProcedure, publicProcedure, router, type TRPCContext } from "../trpc";
+import { onboardingProcedure, protectedProcedure, publicProcedure, signedInProcedure, superAdminProcedure, router, type TRPCContext } from "../trpc";
 import { type AssetRecord } from "../lib/assets";
-import { resolvePublicAssetUrl } from "@/lib/asset-url";
+import { isAllowedAssetUrl, resolvePublicAssetUrl } from "@/lib/asset-url";
+import { connectionsRouter, deployRouter, invitesRouter } from "./ops";
+import { hashToken } from "@/lib/crypto-token";
+import { buildCampaignMap, compileUserSignature, parseJson } from "../lib/compile-user-signature";
+import { appBaseUrl } from "@/env";
 import {
   buildCompileContext,
   hasLegalDisclaimerText,
@@ -46,41 +48,13 @@ import {
 } from "@/lib/identity";
 import { TRPCError } from "@trpc/server";
 
-function parseJson<T>(value: string): T {
-  return JSON.parse(value) as T;
-}
-
 async function getOrgId(ctx: { orgId: string | null }) {
   if (!ctx.orgId) throw new Error("No organization found");
   return ctx.orgId;
 }
 
-function toRuleDefinition(rule: {
-  id: string;
-  name: string;
-  level: string;
-  priority: number;
-  conditions: string;
-  actions: string;
-  enabled: boolean;
-}): RuleDefinition {
-  return RuleDefinitionSchema.parse({
-    id: rule.id,
-    name: rule.name,
-    level: rule.level,
-    priority: rule.priority,
-    conditions: parseJson(rule.conditions),
-    actions: parseJson(rule.actions),
-    enabled: rule.enabled,
-  });
-}
-
-function toTemplateDefinition(definition: string): TemplateDefinition {
-  return parseTemplateDefinition(parseJson(definition));
-}
-
 function getBaseUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  return appBaseUrl();
 }
 
 function assetIdsInTemplate(definition: string): string[] {
@@ -91,88 +65,7 @@ function assetIdsInTemplate(definition: string): string[] {
   }
 }
 
-function buildCampaignMap(
-  campaigns: {
-    id: string;
-    bannerAssetId: string;
-    slogan?: string | null;
-    ctaText?: string | null;
-    ctaLink?: string | null;
-    logoOverrideAssetId?: string | null;
-    startDate: Date;
-    endDate: Date;
-  }[],
-  assets: AssetRecord[],
-  definition?: TemplateDefinition,
-) {
-  const bannerAssets = assets.filter((a) => a.kind === "BANNER");
-  const baseUrl = getBaseUrl();
-
-  const map = Object.fromEntries(
-    campaigns.map((c) => {
-      const banner = bannerAssets.find((a) => a.id === c.bannerAssetId);
-      const status = campaignStatus(fromCampaignDate(c.startDate), fromCampaignDate(c.endDate));
-      return [
-        c.id,
-        {
-          id: c.id,
-          bannerUrl: banner ? resolvePublicAssetUrl(banner.url, baseUrl) : "",
-          width: banner?.width ?? undefined,
-          height: banner?.height ?? undefined,
-          slogan: c.slogan?.trim() || undefined,
-          ctaOverride:
-            c.ctaText?.trim() && c.ctaLink?.trim()
-              ? { text: c.ctaText.trim(), link: c.ctaLink.trim() }
-              : undefined,
-          logoOverrideAssetId: c.logoOverrideAssetId || undefined,
-          active: status === "active",
-        },
-      ];
-    }),
-  );
-
-  if (definition) {
-    for (const block of definition.blocks) {
-      if (block.type !== "campaign_banner") continue;
-      const prefixed = block.campaignId.startsWith("asset:") ? block.campaignId.slice(6) : "";
-      const assetId = block.assetId || prefixed;
-      if (!assetId) continue;
-      const asset = assets.find((a) => a.id === assetId);
-      if (!asset) continue;
-      map[block.campaignId || assetId] = {
-        id: block.campaignId || assetId,
-        bannerUrl: resolvePublicAssetUrl(asset.url, baseUrl),
-        width: asset.width ?? undefined,
-        height: asset.height ?? undefined,
-        slogan: undefined,
-        ctaOverride: undefined,
-        logoOverrideAssetId: undefined,
-        active: true,
-      };
-    }
-  }
-
-  return map;
-}
-
 export const orgRouter = router({
-  get: protectedProcedure.query(async ({ ctx }) => {
-    const orgId = await getOrgId(ctx);
-    const org = await ctx.prisma.organization.findUnique({
-      where: { id: orgId },
-      include: {
-        _count: {
-          select: {
-            templates: true,
-            rules: true,
-            users: true,
-            campaigns: true,
-          },
-        },
-      },
-    });
-    return org;
-  }),
   dashboard: protectedProcedure.query(async ({ ctx }) => {
     const orgId = await getOrgId(ctx);
     const [org, logoCount, people] = await Promise.all([
@@ -235,10 +128,10 @@ function emptyToNull(value: string | null | undefined): string | null {
 
 function assertPersonPhotoUrl(url: string | null) {
   if (!url) return;
-  if (!url.startsWith("https://") && !url.startsWith("http://") && !url.startsWith("/")) {
+  if (!isAllowedAssetUrl(url, process.env.NODE_ENV === "production")) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: "Fotoğraf URL'si https://, http:// veya / ile başlamalı",
+      message: "Fotoğraf URL'si https:// ile başlamalı",
     });
   }
 }
@@ -265,12 +158,6 @@ export const usersRouter = router({
       orderBy: { displayName: "asc" },
     });
   }),
-  getById: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const orgId = await getOrgId(ctx);
-      return ctx.prisma.user.findFirst({ where: { id: input.id, orgId } });
-    }),
   create: protectedProcedure.input(PersonFieldsSchema).mutation(async ({ ctx, input }) => {
     const orgId = await getOrgId(ctx);
     const photoUrl = emptyToNull(input.photoUrl);
@@ -292,7 +179,6 @@ export const usersRouter = router({
         country: emptyToNull(input.country),
         photoUrl,
         sendAsAliases: JSON.stringify([email]),
-        attributes: "{}",
       },
     });
   }),
@@ -323,7 +209,7 @@ export const usersRouter = router({
         },
       });
     }),
-  delete: protectedProcedure
+  delete: superAdminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const orgId = await getOrgId(ctx);
@@ -372,7 +258,6 @@ export const usersRouter = router({
               orgId,
               externalId: `dir:${email.toLowerCase()}`,
               sendAsAliases: JSON.stringify([email]),
-              attributes: "{}",
               ...data,
               photoUrl: photoUrl ?? null,
               mobile: data.mobile ?? null,
@@ -450,16 +335,6 @@ export const templatesRouter = router({
         },
       });
     }),
-  delete: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const orgId = await getOrgId(ctx);
-      const existing = await ctx.prisma.template.findFirst({
-        where: { id: input.id, orgId },
-      });
-      if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
-      return ctx.prisma.template.delete({ where: { id: input.id } });
-    }),
   compilePreview: protectedProcedure
     .input(
       z.object({
@@ -524,12 +399,7 @@ export const rulesRouter = router({
       orderBy: [{ level: "asc" }, { priority: "asc" }],
     });
   }),
-  get: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
-      return ctx.prisma.rule.findUnique({ where: { id: input.id } });
-    }),
-  create: protectedProcedure
+  create: superAdminProcedure
     .input(
       z.object({
         name: z.string().min(1),
@@ -555,7 +425,7 @@ export const rulesRouter = router({
         },
       });
     }),
-  update: protectedProcedure
+  update: superAdminProcedure
     .input(
       z.object({
         id: z.string(),
@@ -593,18 +463,14 @@ export const rulesRouter = router({
         },
       });
     }),
-  delete: protectedProcedure
+  delete: superAdminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.rule.delete({ where: { id: input.id } });
-    }),
-  reorder: protectedProcedure
-    .input(z.object({ id: z.string(), priority: z.number().int() }))
-    .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.rule.update({
-        where: { id: input.id },
-        data: { priority: input.priority },
-      });
+      const orgId = await getOrgId(ctx);
+      const existing = await ctx.prisma.rule.findFirst({ where: { id: input.id, orgId } });
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+      await ctx.prisma.rule.delete({ where: { id: input.id } });
+      return { ok: true };
     }),
 });
 
@@ -630,7 +496,6 @@ function presentCampaign(campaign: {
   ctaLink: string | null;
   logoOverrideAssetId: string | null;
   templateIds: string;
-  targeting: string;
 }) {
   const startDate = fromCampaignDate(campaign.startDate);
   const endDate = fromCampaignDate(campaign.endDate);
@@ -724,7 +589,7 @@ export const campaignsRouter = router({
       });
       return presentCampaign(updated);
     }),
-  delete: protectedProcedure
+  delete: superAdminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const orgId = await getOrgId(ctx);
@@ -793,10 +658,10 @@ async function ensureIdentitySlots(
 }
 
 function assertAssetUrl(url: string) {
-  if (!url.startsWith("https://") && !url.startsWith("http://") && !url.startsWith("/")) {
+  if (!isAllowedAssetUrl(url, process.env.NODE_ENV === "production")) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: "URL https://, http:// veya /uploads/ ile başlamalı",
+      message: "URL https:// ile başlamalı",
     });
   }
 }
@@ -903,34 +768,6 @@ export const assetsRouter = router({
         },
       }));
     }),
-  create: protectedProcedure
-    .input(
-      z.object({
-        kind: AssetKindSchema,
-        slot: IdentitySlotSchema.optional(),
-        url: z.string().min(1),
-        bytes: z.number().int().optional(),
-        width: z.number().int().positive().optional(),
-        height: z.number().int().positive().optional(),
-        alt: z.string().optional(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const orgId = await getOrgId(ctx);
-      assertAssetUrl(input.url);
-      return ctx.prisma.brandAsset.create({
-        data: {
-          orgId,
-          kind: input.kind,
-          slot: input.slot,
-          url: input.url,
-          bytes: input.bytes ?? 0,
-          width: input.width,
-          height: input.height,
-          alt: input.alt,
-        },
-      });
-    }),
   upsertSlot: protectedProcedure
     .input(
       z.object({
@@ -997,7 +834,7 @@ export const assetsRouter = router({
         },
       });
     }),
-  delete: protectedProcedure
+  delete: superAdminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const orgId = await getOrgId(ctx);
@@ -1021,93 +858,19 @@ export const simulateRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const orgId = await getOrgId(ctx);
-      const [user, rules, templates, org, assets, campaigns, groups] = await Promise.all([
-        ctx.prisma.user.findFirst({ where: { id: input.userId, orgId } }),
-        ctx.prisma.rule.findMany({ where: { orgId, enabled: true } }),
-        ctx.prisma.template.findMany({ where: { orgId } }),
-        ctx.prisma.organization.findUnique({ where: { id: orgId } }),
-        ctx.prisma.brandAsset.findMany({ where: { orgId } }),
-        ctx.prisma.campaign.findMany({ where: { orgId } }),
-        ctx.prisma.group.findMany({ where: { orgId } }),
-      ]);
-
-      if (!user || !org) throw new Error("User or org not found");
-
-      const groupIds = groups
-        .filter((g) => parseJson<string[]>(g.memberIds).includes(user.id))
-        .map((g) => g.id);
-
-      const templateMap = Object.fromEntries(
-        templates.map((t) => [t.id, toTemplateDefinition(t.definition)]),
-      );
-
-      const campaignMap = buildCampaignMap(campaigns, assets as AssetRecord[]);
-      const fallbackPhoto = assets.find((asset) => asset.slot === "profile_fallback");
-      const activeCampaignIdForTemplate = Object.fromEntries(
-        templates.flatMap((template) => {
-          const active = findActiveCampaignForTemplate(campaigns, template.id);
-          return active ? [[template.id, active.id] as const] : [];
-        }),
-      );
-      const compileContext = buildCompileContext({
-        user: {
-          user: {
-            displayName: user.displayName,
-            jobTitle: user.jobTitle ?? undefined,
-            department: user.department ?? undefined,
-            country: user.country ?? undefined,
-            email: user.email,
-            mobile: user.mobile ?? undefined,
-            officePhone: user.officePhone ?? undefined,
-            photoUrl: user.photoUrl ?? undefined,
-          },
-          organization: { name: org.name },
-        },
-        assets: assets as AssetRecord[],
-        campaigns: campaignMap,
-        org,
-        fallbackPhotoUrl: fallbackPhoto?.url,
-        baseUrl: getBaseUrl(),
+      const compiled = await compileUserSignature(ctx.prisma, {
+        orgId,
+        userId: input.userId,
+        sendingAlias: input.sendingAlias,
+        messageType: input.messageType,
+        recipientType: input.recipientType,
       });
-
-      const aliases = parseJson<string[]>(user.sendAsAliases);
-
-      return simulate({
-        context: {
-          user: {
-            id: user.id,
-            displayName: user.displayName,
-            email: user.email,
-            jobTitle: user.jobTitle ?? undefined,
-            department: user.department ?? undefined,
-            country: user.country ?? undefined,
-            groupIds,
-            sendAsAliases: aliases,
-          },
-          sendingAlias: input.sendingAlias ?? user.email,
-          messageType: input.messageType,
-          recipientType: input.recipientType,
-          at: new Date(),
-          activeCampaignIds: campaigns
-            .filter(
-              (campaign) =>
-                campaignStatus(fromCampaignDate(campaign.startDate), fromCampaignDate(campaign.endDate)) ===
-                "active",
-            )
-            .map((campaign) => campaign.id),
-        },
-        rules: rules.map(toRuleDefinition),
-        defaultTemplateId: templates[0]?.id,
-        templates: templateMap,
-        compileContext,
-        activeCampaignIdForTemplate,
-        lintOptions: { requiredDisclaimer: true },
-      });
+      if (!compiled) throw new Error("User or org not found");
+      return compiled.result;
     }),
 });
 
 export const authRouter = router({
-  me: publicProcedure.query(({ ctx }) => ctx.session),
   createOrg: onboardingProcedure
     .input(
       z.object({
@@ -1150,6 +913,63 @@ export const authRouter = router({
 
       return { orgId: org.id, slug: org.slug, name: org.name };
     }),
+  previewInvite: publicProcedure
+    .input(z.object({ token: z.string().min(8) }))
+    .query(async ({ ctx, input }) => {
+      const invite = await ctx.prisma.adminInvite.findUnique({
+        where: { tokenHash: hashToken(input.token) },
+        include: { org: { select: { name: true, slug: true } } },
+      });
+      if (!invite || invite.acceptedAt || invite.expiresAt < new Date()) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "INVITE_INVALID" });
+      }
+      const sessionEmail = ctx.session?.email?.toLowerCase();
+      return {
+        email: invite.email,
+        role: invite.role,
+        orgName: invite.org.name,
+        orgSlug: invite.org.slug,
+        matchesSession: Boolean(sessionEmail && sessionEmail === invite.email.toLowerCase()),
+      };
+    }),
+  acceptInvite: signedInProcedure
+    .input(z.object({ token: z.string().min(8) }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.session?.orgId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Already in an organization" });
+      }
+      const email = ctx.session?.email;
+      if (!email) throw new TRPCError({ code: "BAD_REQUEST", message: "Google account has no email" });
+      const invite = await ctx.prisma.adminInvite.findUnique({
+        where: { tokenHash: hashToken(input.token) },
+      });
+      if (!invite || invite.acceptedAt || invite.expiresAt < new Date()) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "INVITE_INVALID" });
+      }
+      if (invite.email.toLowerCase() !== email.toLowerCase()) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "INVITE_EMAIL_MISMATCH" });
+      }
+      await ctx.prisma.$transaction([
+        ctx.prisma.adminUser.create({
+          data: {
+            orgId: invite.orgId,
+            email,
+            name: ctx.session?.name ?? email,
+            googleSub: ctx.session?.googleSub,
+            role: invite.role,
+          },
+        }),
+        ctx.prisma.adminInvite.update({
+          where: { id: invite.id },
+          data: { acceptedAt: new Date() },
+        }),
+      ]);
+      const org = await ctx.prisma.organization.findUniqueOrThrow({
+        where: { id: invite.orgId },
+        select: { slug: true, name: true },
+      });
+      return { orgId: invite.orgId, slug: org.slug, name: org.name };
+    }),
 });
 
 export const appRouter = router({
@@ -1163,6 +983,9 @@ export const appRouter = router({
   assets: assetsRouter,
   identity: identityRouter,
   simulate: simulateRouter,
+  connections: connectionsRouter,
+  deploy: deployRouter,
+  invites: invitesRouter,
 });
 
 export type AppRouter = typeof appRouter;

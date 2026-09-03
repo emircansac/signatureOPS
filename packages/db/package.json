@@ -14,7 +14,10 @@
   "scripts": {
     "build": "tsc",
     "generate": "prisma generate",
+    "build": "prisma generate && tsc",
+    "generate": "prisma generate",
     "migrate": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
     "push": "prisma db push",
     "seed": "tsx src/seed.ts",
     "migrate:assets": "tsx src/migrate-template-assets.ts",
@@ -28,5 +31,8 @@
     "prisma": "^6.11.1",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
+  },
+  "prisma": {
+    "seed": "tsx src/seed.ts"
   }
 }

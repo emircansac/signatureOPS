@@ -47,6 +47,7 @@ export function Badge({
 }: {
   children: ReactNode;
   variant?: "default" | "success" | "warning" | "error";
+  className?: string;
 }) {
   return (
     <span
