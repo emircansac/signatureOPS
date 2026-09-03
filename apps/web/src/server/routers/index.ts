@@ -879,6 +879,28 @@ export const authRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const email = ctx.session?.email;
+      if (!email) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Google account has no email" });
+      }
+
+      const existingAdmin = await ctx.prisma.adminUser.findFirst({
+        where: {
+          OR: [
+            ...(ctx.session.googleSub ? [{ googleSub: ctx.session.googleSub }] : []),
+            { email },
+          ],
+        },
+        include: { org: true },
+      });
+      if (existingAdmin) {
+        return {
+          orgId: existingAdmin.org.id,
+          slug: existingAdmin.org.slug,
+          name: existingAdmin.org.name,
+        };
+      }
+
       const slug = slugify(input.slug);
       if (slug.length < SlugSchema.min || !SlugSchema.pattern.test(slug)) {
         throw new TRPCError({ code: "BAD_REQUEST", message: "Invalid slug" });
@@ -891,11 +913,6 @@ export const authRouter = router({
         throw new TRPCError({ code: "CONFLICT", message: "Slug already in use" });
       }
 
-      const email = ctx.session?.email;
-      if (!email) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Google account has no email" });
-      }
-
       const org = await ctx.prisma.organization.create({
         data: {
           name: input.name.trim(),
@@ -904,7 +921,7 @@ export const authRouter = router({
             create: {
               email,
               name: ctx.session?.name ?? email,
-              googleSub: ctx.session?.googleSub,
+              googleSub: ctx.session.googleSub,
               role: "SUPER_ADMIN",
             },
           },
