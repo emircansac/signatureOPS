@@ -12,8 +12,6 @@
     }
   },
   "scripts": {
-    "build": "tsc",
-    "generate": "prisma generate",
     "build": "prisma generate && tsc",
     "generate": "prisma generate",
     "migrate": "prisma migrate dev",
@@ -31,8 +29,5 @@
     "prisma": "^6.11.1",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3"
-  },
-  "prisma": {
-    "seed": "tsx src/seed.ts"
   }
 }

@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
-  "installCommand": "cd ../.. && corepack enable && corepack prepare pnpm@9.15.0 --activate && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install --frozen-lockfile",
+  "installCommand": "cd ../.. && corepack enable && corepack prepare pnpm@9.15.0 --activate && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 PRISMA_SKIP_POSTINSTALL_GENERATE=1 pnpm install --frozen-lockfile",
   "buildCommand": "cd ../.. && pnpm --filter @signatureops/db generate && pnpm --filter @signatureops/outlook-addin build && pnpm turbo build --filter=@signatureops/web"
 }
