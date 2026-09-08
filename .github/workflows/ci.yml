@@ -19,15 +19,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @signatureops/db generate
-      - run: pnpm --filter @signatureops/schema test
-      - run: pnpm --filter @signatureops/compiler test
-      - run: pnpm --filter @signatureops/linter test
-      - run: pnpm --filter @signatureops/rules test
-      - run: pnpm --filter @signatureops/adapters-google test
-      - run: pnpm --filter @signatureops/adapters-microsoft test
-      - run: pnpm --filter @signatureops/web test:unit
-      - run: pnpm --filter @signatureops/outlook-addin build
-      - run: pnpm --filter @signatureops/web build
+      # Workspace packages export dist/; turbo honors test.dependsOn ^build so
+      # @signatureops/schema (and the rest) exist before Vitest/Next resolve them.
+      - run: pnpm turbo run test --filter=@signatureops/schema --filter=@signatureops/compiler --filter=@signatureops/linter --filter=@signatureops/rules --filter=@signatureops/adapters-google --filter=@signatureops/adapters-microsoft
+      - run: pnpm turbo run test:unit --filter=@signatureops/web
+      - run: pnpm turbo build --filter=@signatureops/web
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/signatureops
           AUTH_SECRET: ci-auth-secret-at-least-16
@@ -67,4 +63,5 @@ jobs:
       - run: pnpm --filter @signatureops/db generate
       - run: pnpm db:migrate:deploy
       - run: pnpm db:seed
-      - run: pnpm --filter @signatureops/web test:e2e
+      - run: pnpm --filter @signatureops/web exec playwright install --with-deps chromium
+      - run: pnpm turbo run test:e2e --filter=@signatureops/web
