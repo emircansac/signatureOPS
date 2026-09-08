@@ -23,7 +23,7 @@ const nextConfig: NextConfig = {
     "@signatureops/adapters-google",
     "@signatureops/adapters-microsoft",
   ],
-  serverExternalPackages: ["@prisma/client", "xlsx", "@aws-sdk/client-s3", "inngest"],
+  serverExternalPackages: ["@prisma/client", "xlsx", "@aws-sdk/client-s3", "inngest", "sharp"],
   async headers() {
     return [
       {

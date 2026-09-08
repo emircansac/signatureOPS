@@ -13,6 +13,7 @@ import {
   resolvePlaceholders,
 } from "@signatureops/schema";
 import { escapeHtml } from "./escape.js";
+import { fittedDisplaySize } from "./display-fit.js";
 
 const FIELD_MAP: Record<string, string> = {
   displayName: "user.displayName",
@@ -174,9 +175,9 @@ function renderContact(fields: string[], context: CompileContext): string {
 function renderLogo(block: Extract<Block, { type: "company_logo" }>, context: CompileContext): string {
   const asset = resolveLogoAsset(block, context);
   if (!asset) return "";
-  const w = asset.width ?? 120;
-  const h = asset.height ?? 40;
-  return `<td style="vertical-align:top;padding:0 12px 8px 0;">${renderImg(asset, "Company logo", w, h)}</td>`;
+  const slot = block.logoVariant === "mark" ? "logo_mark" : "logo";
+  const { width, height } = fittedDisplaySize(slot, asset.width, asset.height);
+  return `<td style="vertical-align:top;padding:0 12px 8px 0;">${renderImg(asset, "Company logo", width, height)}</td>`;
 }
 
 function renderProfilePhoto(context: CompileContext): string {
@@ -217,8 +218,11 @@ function renderSocialLinks(
       const iconId = context.identity?.socialIconAssetIds[entry.platform];
       const icon = custom ? resolveAsset(iconId, context) : undefined;
       if (icon) {
-        const w = icon.width ?? 16;
-        const h = icon.height ?? 16;
+        const { width: w, height: h } = fittedDisplaySize(
+          `social_${entry.platform}`,
+          icon.width,
+          icon.height,
+        );
         return `<a href="${escapeHtml(entry.url)}" style="text-decoration:none;margin-right:8px;">${renderImg(icon, entry.label, w, h, "display:inline-block;")}</a>`;
       }
       if (custom) {
@@ -239,9 +243,11 @@ function renderCta(block: Extract<Block, { type: "cta_button" }>, context: Compi
   if (!url.startsWith("https://")) return "";
   const fill = resolveColorHex(block.colorAssetId, context);
   const icon = resolveAsset(block.assetId, context);
-  const iconHtml = icon
-    ? `${renderImg(icon, label, icon.width ?? 16, icon.height ?? 16, "display:inline-block;vertical-align:middle;margin-right:6px;")} `
-    : "";
+  const iconSize = icon ? fittedDisplaySize("cta_icon", icon.width, icon.height) : null;
+  const iconHtml =
+    icon && iconSize
+      ? `${renderImg(icon, label, iconSize.width, iconSize.height, "display:inline-block;vertical-align:middle;margin-right:6px;")} `
+      : "";
   return `<tr><td colspan="2" style="padding:8px 0;"><a href="${escapeHtml(url)}" style="font-family:Arial,sans-serif;font-size:12px;color:#ffffff;background-color:${fill};text-decoration:none;padding:6px 12px;display:inline-block;border-radius:4px;">${iconHtml}${escapeHtml(label)}</a></td></tr>`;
 }
 
@@ -253,8 +259,7 @@ function renderCampaign(
   const fromBlock = block.campaignId ? context.campaigns[block.campaignId] : undefined;
   const campaign = campaignIsUsable(applied) ? applied : campaignIsUsable(fromBlock) ? fromBlock : undefined;
   if (campaign && isAllowedImageUrl(campaign.bannerUrl)) {
-    const w = campaign.width ?? 400;
-    const h = campaign.height ?? 80;
+    const { width: w, height: h } = fittedDisplaySize("banner", campaign.width, campaign.height);
     const slogan = campaign.slogan?.trim()
       ? `<p style="font-family:Arial,sans-serif;font-size:11px;color:#555555;margin:6px 0 0 0;padding:0;">${escapeHtml(campaign.slogan.trim())}</p>`
       : "";
@@ -262,8 +267,7 @@ function renderCampaign(
   }
   const asset = resolveAsset(block.assetId, context);
   if (!asset) return "";
-  const w = asset.width ?? 400;
-  const h = asset.height ?? 80;
+  const { width: w, height: h } = fittedDisplaySize("banner", asset.width, asset.height);
   return `<tr><td colspan="2" style="padding:8px 0;">${renderImg(asset, asset.alt ?? "Banner", w, h, "max-width:100%;")}</td></tr>`;
 }
 
@@ -274,10 +278,11 @@ function renderDisclaimer(
   const resolved = resolvePlaceholders(block.text, context.user);
   const text = `<p style="font-family:Arial,sans-serif;font-size:10px;color:#888888;margin:0;padding:0;line-height:1.4;">${escapeHtml(resolved)}</p>`;
   const badge = resolveAsset(block.assetId, context);
-  if (!badge) {
+  const badgeSize = badge ? fittedDisplaySize("legal_badge", badge.width, badge.height) : null;
+  if (!badge || !badgeSize) {
     return `<tr><td colspan="2" style="padding:8px 0 0 0;">${text}</td></tr>`;
   }
-  return `<tr><td colspan="2" style="padding:8px 0 0 0;"><table cellpadding="0" cellspacing="0" border="0"><tr><td style="vertical-align:top;padding:0 8px 0 0;">${renderImg(badge, "Legal badge", badge.width ?? 24, badge.height ?? 24)}</td><td style="vertical-align:top;">${text}</td></tr></table></td></tr>`;
+  return `<tr><td colspan="2" style="padding:8px 0 0 0;"><table cellpadding="0" cellspacing="0" border="0"><tr><td style="vertical-align:top;padding:0 8px 0 0;">${renderImg(badge, "Legal badge", badgeSize.width, badgeSize.height)}</td><td style="vertical-align:top;">${text}</td></tr></table></td></tr>`;
 }
 
 function renderCertifications(
@@ -290,8 +295,10 @@ function renderCertifications(
   if (images.length > 0) {
     const imgs = images
       .map(
-        (asset) =>
-          `<td style="padding:0 6px 0 0;vertical-align:middle;">${renderImg(asset, asset.alt ?? "Certification", asset.width ?? 32, asset.height ?? 32)}</td>`,
+        (asset) => {
+          const { width, height } = fittedDisplaySize("certification", asset.width, asset.height);
+          return `<td style="padding:0 6px 0 0;vertical-align:middle;">${renderImg(asset, asset.alt ?? "Certification", width, height)}</td>`;
+        },
       )
       .join("");
     return `<tr><td colspan="2" style="padding:4px 0;"><table cellpadding="0" cellspacing="0" border="0"><tr>${imgs}</tr></table></td></tr>`;

@@ -130,8 +130,19 @@ export function IdentityPanel() {
   );
 }
 
+function paletteSignature(colors: BrandColor[]): string {
+  return JSON.stringify(
+    colors.map((color) => ({
+      id: color.id ?? "",
+      hex: color.hex.trim().toUpperCase(),
+      label: color.label?.trim() ?? "",
+    })),
+  );
+}
+
 function PaletteCard({ initial }: { initial: BrandColor[] }) {
   const t = useTranslations("identity");
+  const tc = useTranslations("common");
   const utils = trpc.useUtils();
   const [colors, setColors] = useState<BrandColor[]>(initial);
   const colorsRef = useRef(colors);
@@ -147,11 +158,14 @@ function PaletteCard({ initial }: { initial: BrandColor[] }) {
   });
 
   useEffect(() => {
+    if (paletteSignature(colorsRef.current) !== paletteSignature(initial)) return;
     setColors(initial);
   }, [initial]);
 
-  const persist = (next: BrandColor[]) => {
-    const parsed = next.map((color, index) => {
+  const dirty = paletteSignature(colors) !== paletteSignature(initial);
+
+  const persist = () => {
+    const parsed = colors.map((color, index) => {
       const hex = normalizeHex(color.hex);
       return hex
         ? { id: color.id || ensureColorId({ hex, label: color.label }, index), hex, label: color.label?.trim() || undefined }
@@ -165,6 +179,7 @@ function PaletteCard({ initial }: { initial: BrandColor[] }) {
   };
 
   const updateAt = (index: number, patch: Partial<BrandColor>) => {
+    setError("");
     setColors((current) => current.map((color, i) => (i === index ? { ...color, ...patch } : color)));
   };
 
@@ -176,30 +191,20 @@ function PaletteCard({ initial }: { initial: BrandColor[] }) {
       </div>
       <div className="space-y-3">
         {colors.map((color, index) => (
-          <div key={`${color.hex}-${index}`} className="grid gap-3 sm:grid-cols-[3rem_8rem_1fr_auto] sm:items-end">
+          <div key={color.id ?? `color-${index}`} className="grid gap-3 sm:grid-cols-[3rem_8rem_1fr_auto] sm:items-end">
             <div>
               <Label>{t("swatch")}</Label>
               <input
                 type="color"
                 aria-label={t("swatch")}
                 value={normalizeHex(color.hex) ?? "#1C2B3A"}
-                onChange={(e) => {
-                  const next = colors.map((row, i) =>
-                    i === index ? { ...row, hex: e.target.value.toUpperCase() } : row,
-                  );
-                  setColors(next);
-                }}
-                onBlur={() => persist(colorsRef.current)}
+                onChange={(e) => updateAt(index, { hex: e.target.value.toUpperCase() })}
                 className="h-10 w-full cursor-pointer border border-rule bg-paper p-1"
               />
             </div>
             <div>
               <Label>Hex</Label>
-              <Input
-                value={color.hex}
-                onChange={(e) => updateAt(index, { hex: e.target.value })}
-                onBlur={() => persist(colorsRef.current)}
-              />
+              <Input value={color.hex} onChange={(e) => updateAt(index, { hex: e.target.value })} />
             </div>
             <div>
               <Label>{t("colorLabel")}</Label>
@@ -207,15 +212,13 @@ function PaletteCard({ initial }: { initial: BrandColor[] }) {
                 value={color.label ?? ""}
                 placeholder={t("colorLabelPlaceholder")}
                 onChange={(e) => updateAt(index, { label: e.target.value })}
-                onBlur={() => persist(colorsRef.current)}
               />
             </div>
             <Button
               variant="ghost"
               onClick={() => {
-                const next = colors.filter((_, i) => i !== index);
-                setColors(next);
-                persist(next);
+                setError("");
+                setColors((current) => current.filter((_, i) => i !== index));
               }}
             >
               {t("removeColor")}
@@ -223,13 +226,24 @@ function PaletteCard({ initial }: { initial: BrandColor[] }) {
           </div>
         ))}
       </div>
-      <Button
-        variant="secondary"
-        disabled={colors.length >= MAX_COLORS || save.isPending}
-        onClick={() => persist([...colors, { id: `color-${crypto.randomUUID()}`, hex: "#1C2B3A", label: "" }])}
-      >
-        {t("addColor")}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          disabled={colors.length >= MAX_COLORS || save.isPending}
+          onClick={() => {
+            setError("");
+            setColors((current) => [
+              ...current,
+              { id: `color-${crypto.randomUUID()}`, hex: "#1C2B3A", label: "" },
+            ]);
+          }}
+        >
+          {t("addColor")}
+        </Button>
+        <Button onClick={persist} disabled={!dirty || save.isPending}>
+          {tc("save")}
+        </Button>
+      </div>
       {colors.length >= MAX_COLORS ? (
         <p className="text-xs text-lead">{t("paletteMax")}</p>
       ) : null}

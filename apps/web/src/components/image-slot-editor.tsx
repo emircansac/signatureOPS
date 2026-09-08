@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { displayBoxForSlot } from "@signatureops/compiler/display-fit";
 import { trpc } from "@/lib/trpc";
 import { resolvePublicAssetUrl } from "@/lib/asset-url";
 import { readImageSize, uploadImageFile } from "@/lib/upload-image";
@@ -13,6 +14,14 @@ type Source = "file" | "url";
 
 const MAX_BYTES = 500_000;
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+
+function isAllowedImageSource(url: string): boolean {
+  return (
+    url.startsWith("https://") ||
+    url.startsWith("http://localhost") ||
+    url.startsWith("http://127.0.0.1")
+  );
+}
 
 type IdentityAsset = {
   id: string;
@@ -42,6 +51,7 @@ export function ImageSlotEditor({
   const tc = useTranslations("common");
   const utils = trpc.useUtils();
   const fileRef = useRef<HTMLInputElement>(null);
+  const box = displayBoxForSlot(slot);
 
   const [replacing, setReplacing] = useState(!asset);
   const [source, setSource] = useState<Source>("file");
@@ -49,9 +59,7 @@ export function ImageSlotEditor({
   const [previewUrl, setPreviewUrl] = useState("");
   const [url, setUrl] = useState("");
   const [alt, setAlt] = useState(asset?.alt ?? "");
-  const [width, setWidth] = useState(asset?.width ? String(asset.width) : "");
-  const [height, setHeight] = useState(asset?.height ? String(asset.height) : "");
-  const [dimsFromImage, setDimsFromImage] = useState(false);
+  const [naturalSize, setNaturalSize] = useState<{ width: number; height: number } | null>(null);
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
   const [pendingDelete, setPendingDelete] = useState(false);
@@ -71,6 +79,7 @@ export function ImageSlotEditor({
       utils.identity.get.invalidate();
       utils.assets.list.invalidate();
     },
+    onError: (err) => setError(err.message),
   });
 
   const remove = trpc.assets.delete.useMutation({
@@ -80,13 +89,13 @@ export function ImageSlotEditor({
       setPendingDelete(false);
       setReplacing(true);
     },
+    onError: (err) =>
+      setError(err.message === "SUPER_ADMIN_REQUIRED" ? ta("deleteForbidden") : err.message),
   });
 
   useEffect(() => {
     setAlt(asset?.alt ?? "");
-    setWidth(asset?.width ? String(asset.width) : "");
-    setHeight(asset?.height ? String(asset.height) : "");
-  }, [asset?.id, asset?.url, asset?.alt, asset?.width, asset?.height]);
+  }, [asset?.id, asset?.url, asset?.alt]);
 
   useEffect(() => {
     setPendingDelete(false);
@@ -103,7 +112,7 @@ export function ImageSlotEditor({
     setFile(null);
     setUrl("");
     setError("");
-    setDimsFromImage(false);
+    setNaturalSize(null);
     setPreviewUrl((current) => {
       if (current.startsWith("blob:")) URL.revokeObjectURL(current);
       return "";
@@ -118,12 +127,9 @@ export function ImageSlotEditor({
     });
     if (nextAlt) setAlt((current) => current || nextAlt);
     try {
-      const size = await readImageSize(src);
-      setWidth(String(size.width));
-      setHeight(String(size.height));
-      setDimsFromImage(true);
+      setNaturalSize(await readImageSize(src));
     } catch {
-      setDimsFromImage(false);
+      setNaturalSize(null);
     }
   };
 
@@ -138,14 +144,6 @@ export function ImageSlotEditor({
     void applyPreview(URL.createObjectURL(next), next.name.replace(/\.[^.]+$/, ""));
   };
 
-  const parsedWidth = parseInt(width, 10);
-  const parsedHeight = parseInt(height, 10);
-  const meta = {
-    alt: alt.trim() || undefined,
-    width: Number.isFinite(parsedWidth) && parsedWidth > 0 ? parsedWidth : undefined,
-    height: Number.isFinite(parsedHeight) && parsedHeight > 0 ? parsedHeight : undefined,
-  };
-
   const canUpload =
     source === "file"
       ? Boolean(file) && !uploading && !upsert.isPending
@@ -155,37 +153,44 @@ export function ImageSlotEditor({
     setError("");
     if (source === "url") {
       const trimmed = url.trim();
-      if (!trimmed.startsWith("https://") && !trimmed.startsWith("http://")) {
+      if (!isAllowedImageSource(trimmed)) {
         setError(ta("urlHint"));
         return;
       }
-      let nextWidth = meta.width;
-      let nextHeight = meta.height;
+      let nextWidth = naturalSize?.width;
+      let nextHeight = naturalSize?.height;
       if (!nextWidth || !nextHeight) {
         try {
           const size = await readImageSize(trimmed);
           nextWidth = size.width;
           nextHeight = size.height;
         } catch {
-          /* optional */
+          /* optional — server falls back to the slot box */
         }
       }
-      upsert.mutate({ slot, url: trimmed, ...meta, width: nextWidth, height: nextHeight });
+      upsert.mutate({
+        slot,
+        url: trimmed,
+        alt: alt.trim() || undefined,
+        width: nextWidth,
+        height: nextHeight,
+      });
       return;
     }
     if (!file) return;
     setUploading(true);
     try {
-      const uploaded = await uploadImageFile(file);
+      const uploaded = await uploadImageFile(file, { slot });
       await upsert.mutateAsync({
         slot,
         url: uploaded.url,
         bytes: uploaded.bytes,
-        ...meta,
-        alt: meta.alt || file.name.replace(/\.[^.]+$/, ""),
+        width: uploaded.width,
+        height: uploaded.height,
+        alt: alt.trim() || file.name.replace(/\.[^.]+$/, ""),
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Upload failed");
+      setError(e instanceof Error && e.message ? e.message : ta("uploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -197,6 +202,7 @@ export function ImageSlotEditor({
   ];
   const inUse = usageNames.length > 0;
   const currentSrc = asset ? resolvePublicAssetUrl(asset.url) : "";
+  const sizeHint = ta("displaySizeHint", { width: box.width, height: box.height });
 
   return (
     <div className={cn("space-y-3", compact && "space-y-2")}>
@@ -206,20 +212,12 @@ export function ImageSlotEditor({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={currentSrc} alt={asset.alt ?? ""} className="max-h-full max-w-full object-contain" />
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="sm:col-span-3">
-              <Label>{ta("alt")}</Label>
-              <Input value={alt} onChange={(e) => setAlt(e.target.value)} />
-            </div>
-            <div>
-              <Label>{ta("width")}</Label>
-              <Input type="number" value={width} onChange={(e) => setWidth(e.target.value)} />
-            </div>
-            <div>
-              <Label>{ta("height")}</Label>
-              <Input type="number" value={height} onChange={(e) => setHeight(e.target.value)} />
-            </div>
+          <div>
+            <Label>{ta("alt")}</Label>
+            <Input value={alt} onChange={(e) => setAlt(e.target.value)} />
           </div>
+          <p className="text-xs text-lead">{sizeHint}</p>
+          {error ? <p className="text-sm text-seal">{error}</p> : null}
           {inUse ? (
             <p className="text-xs text-lead">
               {ta("usedIn")}: {usageNames.join(", ")}
@@ -227,15 +225,10 @@ export function ImageSlotEditor({
           ) : null}
           <div className="flex flex-wrap gap-2">
             <Button
-              onClick={() =>
-                asset &&
-                update.mutate({
-                  id: asset.id,
-                  alt,
-                  width: parseInt(width, 10) || null,
-                  height: parseInt(height, 10) || null,
-                })
-              }
+              onClick={() => {
+                setError("");
+                asset && update.mutate({ id: asset.id, alt });
+              }}
               disabled={update.isPending}
             >
               {tc("save")}
@@ -337,23 +330,11 @@ export function ImageSlotEditor({
               <img src={previewUrl} alt="" className="max-h-full max-w-full object-contain" />
             </div>
           ) : null}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="sm:col-span-3">
-              <Label>{ta("alt")}</Label>
-              <Input value={alt} onChange={(e) => setAlt(e.target.value)} />
-            </div>
-            <div>
-              <Label>{ta("width")}</Label>
-              <Input type="number" value={width} onChange={(e) => setWidth(e.target.value)} />
-            </div>
-            <div>
-              <Label>{ta("height")}</Label>
-              <Input type="number" value={height} onChange={(e) => setHeight(e.target.value)} />
-            </div>
+          <div>
+            <Label>{ta("alt")}</Label>
+            <Input value={alt} onChange={(e) => setAlt(e.target.value)} />
           </div>
-          <p className="text-xs text-lead">
-            {dimsFromImage ? ta("dimensionsFromImage") : ta("dimensionsUnknown")}
-          </p>
+          <p className="text-xs text-lead">{sizeHint}</p>
           {error ? <p className="text-sm text-seal">{error}</p> : null}
           <div className="flex gap-2">
             <Button onClick={() => void handleUpload()} disabled={!canUpload}>

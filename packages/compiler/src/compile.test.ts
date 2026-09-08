@@ -139,6 +139,71 @@ describe("compile", () => {
     expect(result.html).not.toContain("Campaign banner");
   });
 
+  it("clamps oversized logos to the display box", () => {
+    const definition = parseTemplateDefinition({
+      layout: "single-column",
+      blocks: [{ type: "company_logo", assetId: "huge" }],
+    });
+    const result = compile(definition, {
+      ...baseContext,
+      assets: {
+        huge: {
+          id: "huge",
+          url: "https://cdn.acme.com/huge.png",
+          width: 2000,
+          height: 400,
+          alt: "Huge",
+        },
+      },
+    });
+    expect(result.html).toContain('width="120"');
+    expect(result.html).toContain('height="24"');
+    expect(result.html).not.toContain('width="2000"');
+  });
+
+  it("clamps oversized banners to 400×80", () => {
+    const definition = parseTemplateDefinition({
+      layout: "single-column",
+      blocks: [{ type: "campaign_banner", assetId: "huge-banner" }],
+    });
+    const result = compile(definition, {
+      ...baseContext,
+      assets: {
+        "huge-banner": {
+          id: "huge-banner",
+          url: "https://cdn.acme.com/huge-banner.png",
+          width: 1200,
+          height: 160,
+          alt: "Banner",
+        },
+      },
+    });
+    expect(result.html).toContain('width="400"');
+    expect(result.html).toContain('height="53"');
+  });
+
+  it("clamps oversized certifications", () => {
+    const definition = parseTemplateDefinition({
+      layout: "single-column",
+      blocks: [{ type: "certifications", assetIds: ["iso"] }],
+    });
+    const result = compile(definition, {
+      ...baseContext,
+      assets: {
+        iso: {
+          id: "iso",
+          url: "https://cdn.acme.com/iso.png",
+          width: 320,
+          height: 320,
+          alt: "ISO",
+        },
+      },
+    });
+    expect(result.html).toContain('width="32"');
+    expect(result.html).toContain('height="32"');
+    expect(result.html).not.toContain('width="320"');
+  });
+
   it("omits broken img when logo asset is missing", () => {
     const definition = parseTemplateDefinition({
       layout: "single-column",

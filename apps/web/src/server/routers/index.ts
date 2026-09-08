@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { compile } from "@signatureops/compiler";
+import { compile, fittedDisplaySize } from "@signatureops/compiler";
 import { lintHtml } from "@signatureops/linter";
 import {
   collectTemplateAssetIds,
@@ -783,12 +783,13 @@ export const assetsRouter = router({
       const orgId = await getOrgId(ctx);
       assertAssetUrl(input.url);
       const kind = kindForSlot(input.slot as IdentitySlot);
+      const display = fittedDisplaySize(input.slot, input.width, input.height);
       const data = {
         kind,
         url: input.url,
         bytes: input.bytes ?? 0,
-        width: input.width,
-        height: input.height,
+        width: display.width,
+        height: display.height,
         alt: input.alt,
         slot: input.slot,
       };

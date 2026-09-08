@@ -23,6 +23,7 @@ const serverSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().optional(),
   R2_BUCKET: z.string().optional(),
   R2_PUBLIC_BASE_URL: optionalUrl,
+  R2_ENDPOINT: optionalUrl,
   GOOGLE_SA_CLIENT_EMAIL: z.string().optional(),
   GOOGLE_SA_PRIVATE_KEY: z.string().optional(),
   GOOGLE_SA_CLIENT_ID: z.string().optional(),

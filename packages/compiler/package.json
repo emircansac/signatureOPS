@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./display-fit": {
+      "types": "./dist/display-fit.d.ts",
+      "import": "./dist/display-fit.js"
     }
   },
   "scripts": {
