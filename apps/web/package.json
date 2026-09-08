@@ -23,6 +23,7 @@
     "@signatureops/linter": "workspace:*",
     "@signatureops/rules": "workspace:*",
     "@signatureops/schema": "workspace:*",
+    "@smithy/node-http-handler": "^4.12.1",
     "@tanstack/react-query": "^5.81.5",
     "@trpc/client": "^11.4.3",
     "@trpc/react-query": "^11.4.3",

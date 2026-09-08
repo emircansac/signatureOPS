@@ -13,6 +13,13 @@ describe("mapUploadError", () => {
     });
   });
 
+  it("maps invalid R2 account ids", () => {
+    expect(mapUploadError(new Error("R2_ACCOUNT_ID_INVALID"))).toEqual({
+      status: 500,
+      error: "R2 Account ID geçersiz. Cloudflare’daki 32 karakterlik Account ID olmalı.",
+    });
+  });
+
   it("maps missing R2 config", () => {
     expect(mapUploadError(new Error("R2_REQUIRED"))).toEqual({
       status: 500,

@@ -47,6 +47,12 @@ export function mapUploadError(error: unknown): MappedUploadError {
   if (error instanceof Error && error.message === "R2_REQUIRED") {
     return { status: 500, error: "Dosya deposu yapılandırılmamış (R2)" };
   }
+  if (error instanceof Error && error.message === "R2_ACCOUNT_ID_INVALID") {
+    return {
+      status: 500,
+      error: "R2 Account ID geçersiz. Cloudflare’daki 32 karakterlik Account ID olmalı.",
+    };
+  }
 
   const { message, code, name } = collectErrorParts(error);
   const combined = `${name} ${code} ${message}`;

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { r2ApiEndpoint, r2S3ClientOptions, sanitizeR2AccountId } from "./r2-endpoint";
+import { r2ApiEndpoint, r2S3ClientOptions, sanitizeR2AccountId, assertR2Endpoint } from "./r2-endpoint";
 
 describe("sanitizeR2AccountId", () => {
-  it("returns a bare account id unchanged", () => {
-    expect(sanitizeR2AccountId("abcdef0123456789abcdef0123456789")).toBe(
+  it("strips quotes and whitespace from env pastes", () => {
+    expect(sanitizeR2AccountId('"abcdef0123456789abcdef0123456789"\n')).toBe(
       "abcdef0123456789abcdef0123456789",
     );
   });
@@ -34,6 +34,10 @@ describe("r2ApiEndpoint", () => {
       accountId: "https://abcdef0123456789abcdef0123456789.r2.cloudflarestorage.com",
     });
     expect(fromUrl).toBe(fromId);
+  });
+
+  it("rejects a non-account-id value", () => {
+    expect(() => assertR2Endpoint({ accountId: "signatureops-assets" })).toThrow("R2_ACCOUNT_ID_INVALID");
   });
 
   it("prefers an explicit endpoint", () => {
