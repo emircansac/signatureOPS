@@ -32,7 +32,7 @@ test("directory add, duplicate email, and csv import", async ({ page }) => {
   await page.getByRole("button", { name: "Kaydet" }).click();
   await expect(addedRow.getByText("Satış")).toBeVisible();
 
-  await page.getByRole("button", { name: "İçe Aktar" }).click();
+  await page.getByRole("button", { name: "İçe Aktar", exact: true }).click();
   await expect(page.getByRole("button", { name: "Örnek toplu içe aktarma Excel’i" })).toBeVisible();
   const stamp = Date.now();
   const importName = `Import ${stamp}`;
@@ -53,7 +53,7 @@ test("directory add, duplicate email, and csv import", async ({ page }) => {
   await expect(page.getByText("1 satır hatalı")).toBeVisible();
   await expect(page.getByText("Hatalı satır varken içe aktarım yapılmaz")).toBeVisible();
   await expect(page.getByText(/E-posta geçersiz: “bad-email”/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "İçe aktar" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "İçe aktar", exact: true })).toBeDisabled();
 
   await page.getByRole("button", { name: "Geri" }).click();
   await page.getByRole("button", { name: "Geri" }).click();
@@ -70,7 +70,7 @@ test("directory add, duplicate email, and csv import", async ({ page }) => {
   await page.getByRole("button", { name: "İleri" }).click();
   await expect(page.getByText("2 satır geçerli")).toBeVisible();
   await expect(page.getByText("0 satır hatalı")).toBeVisible();
-  await page.getByRole("button", { name: "İçe aktar" }).click();
+  await page.getByRole("button", { name: "İçe aktar", exact: true }).click();
   await expect(page.getByText("1 kişi eklendi, 1 kişi güncellendi, 0 satır hatalı")).toBeVisible();
   await page.getByRole("button", { name: "Kapat", exact: true }).click();
   await expect(page.getByRole("cell", { name: importName })).toBeVisible();
@@ -94,7 +94,7 @@ test("directory accepts xlsx and auto-maps headers", async ({ page }) => {
   const buffer = Buffer.from(XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as ArrayBuffer);
 
   await page.goto("/tr/app/acme/directory");
-  await page.getByRole("button", { name: "İçe Aktar" }).click();
+  await page.getByRole("button", { name: "İçe Aktar", exact: true }).click();
   await page.locator('input[type="file"]').setInputFiles({
     name: "people.xlsx",
     mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -107,7 +107,7 @@ test("directory accepts xlsx and auto-maps headers", async ({ page }) => {
   await expect(page.getByRole("combobox").nth(3)).toHaveValue("E-posta");
   await page.getByRole("button", { name: "İleri" }).click();
   await expect(page.getByText("1 satır geçerli")).toBeVisible();
-  await page.getByRole("button", { name: "İçe aktar" }).click();
+  await page.getByRole("button", { name: "İçe aktar", exact: true }).click();
   await expect(page.getByText("1 kişi eklendi, 0 kişi güncellendi, 0 satır hatalı")).toBeVisible();
   await page.getByRole("button", { name: "Kapat", exact: true }).click();
   await expect(page.getByRole("cell", { name: email })).toBeVisible();

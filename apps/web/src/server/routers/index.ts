@@ -121,7 +121,6 @@ const ImportRowSchema = z.object({
   mobile: z.string().optional(),
   department: z.string().optional(),
   country: z.string().optional(),
-  photoUrl: z.string().optional(),
 });
 
 function emptyToNull(value: string | null | undefined): string | null {
@@ -236,8 +235,6 @@ export const usersRouter = router({
       let updated = 0;
 
       for (const row of preview.valid) {
-        const photoUrl = row.photoUrl !== undefined ? emptyToNull(row.photoUrl) : undefined;
-        if (photoUrl) assertPersonPhotoUrl(photoUrl);
         const email = row.email.trim();
         const country = row.country !== undefined ? normalizeStoredCountry(row.country) : undefined;
         const mobile =
@@ -249,7 +246,6 @@ export const usersRouter = router({
           ...(mobile !== undefined ? { mobile } : {}),
           ...(row.department !== undefined ? { department: emptyToNull(row.department) } : {}),
           ...(country !== undefined ? { country } : {}),
-          ...(row.photoUrl !== undefined ? { photoUrl } : {}),
         };
 
         if (row.action === "update") {
@@ -264,7 +260,7 @@ export const usersRouter = router({
               externalId: `dir:${email.toLowerCase()}`,
               sendAsAliases: JSON.stringify([email]),
               ...data,
-              photoUrl: photoUrl ?? null,
+              photoUrl: null,
               mobile: data.mobile ?? null,
               department: data.department ?? null,
               country: data.country ?? null,
