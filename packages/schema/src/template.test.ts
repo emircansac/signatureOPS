@@ -8,10 +8,10 @@ import { parseRuleDefinition, safeParseRuleDefinition } from "./rules.js";
 import {
   defaultPlaceholderResolver,
   extractPlaceholders,
-  formatPhone,
   isKnownPlaceholder,
   resolvePlaceholders,
 } from "./placeholders.js";
+import { formatPhone } from "./phone.js";
 import { evaluateVisibleWhen } from "./visibility.js";
 import type { UserContext } from "./context.js";
 
@@ -119,8 +119,9 @@ describe("placeholders", () => {
     expect(defaultPlaceholderResolver("organization.name", sampleUser)).toBe("Acme Corp");
   });
 
-  it("formats phone numbers", () => {
-    expect(formatPhone("5551234567")).toBe("(555) 123-4567");
+  it("formats phone numbers with the country calling code", () => {
+    expect(formatPhone("5551234567", "TR")).toBe("+90 555 123 4567");
+    expect(defaultPlaceholderResolver("user.mobile", sampleUser)).toBe("+90 555 123 4567");
   });
 
   it("resolves text with placeholders", () => {

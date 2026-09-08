@@ -6,6 +6,7 @@ import { getServerEnv, r2Configured } from "@/env";
 import { processUploadImage } from "@/lib/process-image";
 import { createR2S3Client } from "@/lib/r2-client";
 import { r2ApiEndpoint, r2EndpointHostname } from "@/lib/r2-endpoint";
+import { sanitizeFilenameStem } from "@/lib/person-name";
 
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 const MAX_BYTES = 500_000;
@@ -31,7 +32,7 @@ function extFor(type: string, originalName: string): string {
 export async function storeUpload(
   file: File,
   orgId: string,
-  options?: { slot?: string },
+  options?: { slot?: string; filenameStem?: string },
 ): Promise<StoredUpload> {
   if (!ALLOWED_TYPES.has(file.type)) {
     throw new Error("TYPE");
@@ -55,7 +56,8 @@ export async function storeUpload(
     height = processed.displayHeight;
   }
 
-  const filename = `${randomUUID()}.${ext}`;
+  const stem = options?.filenameStem ? sanitizeFilenameStem(options.filenameStem) : "";
+  const filename = `${stem || randomUUID()}.${ext}`;
   const env = getServerEnv();
 
   if (r2Configured()) {

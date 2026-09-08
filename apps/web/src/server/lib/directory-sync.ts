@@ -1,6 +1,7 @@
 import { createDelegatedJwt, listWorkspaceGroups, listWorkspaceUsers } from "@signatureops/adapters-google";
 import { getGraphToken, listGraphGroups, listGraphUsers } from "@signatureops/adapters-microsoft";
 import { prisma } from "@signatureops/db";
+import { normalizeStoredCountry, normalizeStoredPhone } from "@signatureops/schema";
 import { getServerEnv } from "@/env";
 
 function json(value: unknown): string {
@@ -30,15 +31,16 @@ async function upsertPerson(
       OR: [{ externalId: person.externalId }, { email: { equals: person.email, mode: "insensitive" } }],
     },
   });
+  const country = normalizeStoredCountry(person.country);
   const data = {
     externalId: person.externalId,
     displayName: person.displayName,
     jobTitle: person.jobTitle ?? null,
     department: person.department ?? null,
-    country: person.country ?? null,
+    country,
     email: person.email,
-    mobile: person.mobile ?? null,
-    officePhone: person.officePhone ?? null,
+    mobile: normalizeStoredPhone(person.mobile, country),
+    officePhone: normalizeStoredPhone(person.officePhone, country),
     photoUrl: person.photoUrl ?? null,
     sendAsAliases: json(person.aliases?.length ? person.aliases : [person.email]),
     source,

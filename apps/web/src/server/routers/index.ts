@@ -7,6 +7,8 @@ import {
   RuleDefinitionSchema,
   TemplateDefinitionInputSchema,
   TemplateDefinitionSchema,
+  normalizeStoredCountry,
+  normalizeStoredPhone,
   type TemplateDefinition,
 } from "@signatureops/schema";
 import { onboardingProcedure, protectedProcedure, publicProcedure, signedInProcedure, superAdminProcedure, router, type TRPCContext } from "../trpc";
@@ -174,9 +176,9 @@ export const usersRouter = router({
         displayName: input.displayName.trim(),
         jobTitle: input.jobTitle.trim(),
         email,
-        mobile: emptyToNull(input.mobile),
+        mobile: normalizeStoredPhone(input.mobile, input.country),
         department: emptyToNull(input.department),
-        country: emptyToNull(input.country),
+        country: normalizeStoredCountry(input.country),
         photoUrl,
         sendAsAliases: JSON.stringify([email]),
       },
@@ -202,9 +204,9 @@ export const usersRouter = router({
           displayName: input.displayName.trim(),
           jobTitle: input.jobTitle.trim(),
           email: input.email.trim(),
-          mobile: emptyToNull(input.mobile),
+          mobile: normalizeStoredPhone(input.mobile, input.country),
           department: emptyToNull(input.department),
-          country: emptyToNull(input.country),
+          country: normalizeStoredCountry(input.country),
           photoUrl,
         },
       });
@@ -237,13 +239,16 @@ export const usersRouter = router({
         const photoUrl = row.photoUrl !== undefined ? emptyToNull(row.photoUrl) : undefined;
         if (photoUrl) assertPersonPhotoUrl(photoUrl);
         const email = row.email.trim();
+        const country = row.country !== undefined ? normalizeStoredCountry(row.country) : undefined;
+        const mobile =
+          row.mobile !== undefined ? normalizeStoredPhone(row.mobile, country ?? row.country) : undefined;
         const data = {
           displayName: row.displayName.trim(),
           jobTitle: row.jobTitle.trim(),
           email,
-          ...(row.mobile !== undefined ? { mobile: emptyToNull(row.mobile) } : {}),
+          ...(mobile !== undefined ? { mobile } : {}),
           ...(row.department !== undefined ? { department: emptyToNull(row.department) } : {}),
-          ...(row.country !== undefined ? { country: emptyToNull(row.country) } : {}),
+          ...(country !== undefined ? { country } : {}),
           ...(row.photoUrl !== undefined ? { photoUrl } : {}),
         };
 

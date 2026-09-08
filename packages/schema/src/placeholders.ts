@@ -1,4 +1,5 @@
 import type { UserContext } from "./context.js";
+import { formatPhone } from "./phone.js";
 
 const PLACEHOLDER_PATTERN = /\{\{([^}]+)\}\}/g;
 
@@ -29,14 +30,6 @@ function getNestedValue(obj: unknown, path: string): string | undefined {
   return String(current);
 }
 
-export function formatPhone(value: string): string {
-  const digits = value.replace(/\D/g, "");
-  if (digits.length === 10) {
-    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
-  }
-  return value;
-}
-
 export const defaultPlaceholderResolver: PlaceholderResolver = (token, context) => {
   const trimmed = token.trim();
   if (!KNOWN_PATHS.has(trimmed)) return "";
@@ -54,7 +47,7 @@ export const defaultPlaceholderResolver: PlaceholderResolver = (token, context) 
   if (raw == null || raw === "") return "";
 
   if (trimmed === "user.mobile" || trimmed === "user.officePhone") {
-    return formatPhone(raw);
+    return formatPhone(raw, context.user.country);
   }
 
   if (trimmed === "user.email") {

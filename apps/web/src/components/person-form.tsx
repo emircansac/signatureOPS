@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { callingCodeForCountry, normalizeNationalNumber, normalizeStoredCountry } from "@signatureops/schema";
 import { trpc } from "@/lib/trpc";
 import { resolvePublicAssetUrl } from "@/lib/asset-url";
 import { uploadImageFile } from "@/lib/upload-image";
 import { isValidEmail } from "@/lib/directory-import";
-import { Button, Card, Input, Label } from "@/components/ui";
-import { cn } from "@/lib/utils";
+import { joinDisplayName, personPhotoFilename, personPhotoStem, splitDisplayName } from "@/lib/person-name";
+import { countrySelectOptions } from "@/lib/country-options";
+import { Button, Card, Input, Label, Select } from "@/components/ui";
 
 const MAX_BYTES = 500_000;
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
@@ -23,8 +25,6 @@ export type DirectoryPerson = {
   photoUrl: string | null;
 };
 
-type PhotoSource = "file" | "url";
-
 export function PersonForm({
   person,
   existingEmails,
@@ -36,26 +36,25 @@ export function PersonForm({
 }) {
   const t = useTranslations("directory");
   const tc = useTranslations("common");
-  const ta = useTranslations("assets");
+  const locale = useLocale();
+  const countryOptions = countrySelectOptions(locale);
   const utils = trpc.useUtils();
   const fileRef = useRef<HTMLInputElement>(null);
   const editing = Boolean(person);
 
-  const [displayName, setDisplayName] = useState(person?.displayName ?? "");
+  const initialName = splitDisplayName(person?.displayName ?? "");
+  const [firstName, setFirstName] = useState(initialName.firstName);
+  const [lastName, setLastName] = useState(initialName.lastName);
   const [jobTitle, setJobTitle] = useState(person?.jobTitle ?? "");
   const [email, setEmail] = useState(person?.email ?? "");
-  const [mobile, setMobile] = useState(person?.mobile ?? "");
+  const [mobile, setMobile] = useState(() =>
+    normalizeNationalNumber(person?.mobile ?? "", person?.country),
+  );
   const [department, setDepartment] = useState(person?.department ?? "");
-  const [country, setCountry] = useState(person?.country ?? "");
+  const [country, setCountry] = useState(() => normalizeStoredCountry(person?.country) ?? "");
   const [photoUrl, setPhotoUrl] = useState(person?.photoUrl ?? "");
-  const [photoSource, setPhotoSource] = useState<PhotoSource>("file");
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState("");
-  const [urlDraft, setUrlDraft] = useState(
-    person?.photoUrl && (person.photoUrl.startsWith("http://") || person.photoUrl.startsWith("https://"))
-      ? person.photoUrl
-      : "",
-  );
   const [error, setError] = useState("");
   const [uploading, setUploading] = useState(false);
 
@@ -70,10 +69,12 @@ export function PersonForm({
   }, [previewUrl]);
 
   function validate(): string | null {
-    if (!displayName.trim()) return t("errors.missingName");
+    if (!firstName.trim()) return t("errors.missingFirstName");
+    if (!lastName.trim()) return t("errors.missingLastName");
     if (!jobTitle.trim()) return t("errors.missingTitle");
     if (!email.trim()) return t("errors.missingEmail");
     if (!isValidEmail(email)) return t("errors.invalidEmail");
+    if (mobile.trim() && !country.trim()) return t("errors.missingCountryForMobile");
     const taken = existingEmails.some(
       (value) => value.toLowerCase() === email.trim().toLowerCase() && value.toLowerCase() !== person?.email.toLowerCase(),
     );
@@ -108,25 +109,18 @@ export function PersonForm({
     setError("");
     let nextPhoto = photoUrl.trim();
     try {
-      if (photoSource === "file" && file) {
+      if (file) {
         setUploading(true);
-        const uploaded = await uploadImageFile(file);
+        const uploaded = await uploadImageFile(file, {
+          filenameStem: personPhotoStem(firstName, lastName, jobTitle) || undefined,
+        });
         nextPhoto = uploaded.url;
-      } else if (photoSource === "url") {
-        const trimmed = urlDraft.trim();
-        if (trimmed) {
-          if (!trimmed.startsWith("https://") && !trimmed.startsWith("http://")) {
-            setError(ta("urlHint"));
-            return;
-          }
-          nextPhoto = trimmed;
-        }
       }
       const payload = {
-        displayName: displayName.trim(),
+        displayName: joinDisplayName(firstName, lastName),
         jobTitle: jobTitle.trim(),
         email: email.trim(),
-        mobile: mobile.trim() || null,
+        mobile: normalizeNationalNumber(mobile, country) || null,
         department: department.trim() || null,
         country: country.trim() || null,
         photoUrl: nextPhoto || null,
@@ -147,6 +141,7 @@ export function PersonForm({
   };
 
   const displayPhoto = previewUrl || (photoUrl ? resolvePublicAssetUrl(photoUrl) : "");
+  const dialPrefix = callingCodeForCountry(country);
 
   return (
     <div
@@ -166,14 +161,27 @@ export function PersonForm({
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <Label htmlFor="person-name">
-              {t("name")} <span className="text-lead">*</span>
+          <div>
+            <Label htmlFor="person-first-name">
+              {t("firstName")} <span className="text-lead">*</span>
             </Label>
             <Input
-              id="person-name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
+              id="person-first-name"
+              autoComplete="given-name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="person-last-name">
+              {t("lastName")} <span className="text-lead">*</span>
+            </Label>
+            <Input
+              id="person-last-name"
+              autoComplete="family-name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
               required
             />
           </div>
@@ -201,12 +209,41 @@ export function PersonForm({
             />
           </div>
           <div>
+            <Label htmlFor="person-country">{t("country")}</Label>
+            <Select
+              id="person-country"
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+            >
+              <option value="">{t("countryPlaceholder")}</option>
+              {country && !countryOptions.some((row) => row.code === country) ? (
+                <option value={country}>{country}</option>
+              ) : null}
+              {countryOptions.map((row) => (
+                <option key={row.code} value={row.code}>
+                  {row.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="sm:col-span-2">
             <Label htmlFor="person-mobile">{t("mobile")}</Label>
-            <Input
-              id="person-mobile"
-              value={mobile}
-              onChange={(e) => setMobile(e.target.value)}
-            />
+            <div className="flex">
+              <span className="inline-flex shrink-0 items-center border border-r-0 border-rule bg-paper px-3 text-sm text-lead">
+                {dialPrefix ? `+${dialPrefix}` : "+"}
+              </span>
+              <Input
+                id="person-mobile"
+                className="border-l-0"
+                inputMode="numeric"
+                autoComplete="tel-national"
+                maxLength={15}
+                placeholder={t("mobilePlaceholder")}
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value.replace(/\D/g, ""))}
+              />
+            </div>
+            <p className="mt-1 text-xs text-lead">{t("mobileHint")}</p>
           </div>
           <div>
             <Label htmlFor="person-department">{t("department")}</Label>
@@ -216,62 +253,36 @@ export function PersonForm({
               onChange={(e) => setDepartment(e.target.value)}
             />
           </div>
-          <div>
-            <Label htmlFor="person-country">{t("country")}</Label>
-            <Input
-              id="person-country"
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-            />
-          </div>
         </div>
 
         <div className="space-y-3">
           <Label>{t("photo")}</Label>
-          <div className="flex border-b border-rule">
-            {(["file", "url"] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => {
-                  setPhotoSource(value);
-                  setError("");
-                }}
-                className={cn(
-                  "-mb-px border-b px-4 py-2 text-sm",
-                  photoSource === value ? "border-ink text-ink" : "border-transparent text-lead hover:text-ink",
-                )}
-              >
-                {value === "file" ? t("photoFile") : t("photoUrl")}
-              </button>
-            ))}
-          </div>
-          {photoSource === "file" ? (
-            <div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp"
-                className="hidden"
-                onChange={(e) => onFileChosen(e.target.files?.[0])}
-              />
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="flex w-full items-center justify-between border border-rule bg-paper px-3 py-3 text-left text-sm text-ink hover:border-ink"
-              >
-                <span>{file ? file.name : t("choosePhoto")}</span>
-                <span className="text-lead">{file ? "" : t("optional")}</span>
-              </button>
-              <p className="mt-1 text-xs text-lead">{t("photoHint")}</p>
-            </div>
-          ) : (
-            <Input
-              placeholder="https://"
-              value={urlDraft}
-              onChange={(e) => setUrlDraft(e.target.value)}
+          <div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              className="hidden"
+              onChange={(e) => onFileChosen(e.target.files?.[0])}
             />
-          )}
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex w-full items-center justify-between border border-rule bg-paper px-3 py-3 text-left text-sm text-ink hover:border-ink"
+            >
+              <span>{file ? file.name : t("choosePhoto")}</span>
+              <span className="text-lead">{file ? "" : t("optional")}</span>
+            </button>
+            <p className="mt-1 text-xs text-lead">{t("photoHint")}</p>
+            {file ? (
+              <p className="mt-1 text-xs text-lead">
+                {t("photoStoredAs", {
+                  name:
+                    personPhotoFilename(firstName, lastName, jobTitle, file.type) || file.name,
+                })}
+              </p>
+            ) : null}
+          </div>
           {displayPhoto ? (
             <div className="flex items-center gap-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -283,7 +294,6 @@ export function PersonForm({
                   onClick={() => {
                     setFile(null);
                     setPhotoUrl("");
-                    setUrlDraft("");
                     setPreviewUrl((current) => {
                       if (current.startsWith("blob:")) URL.revokeObjectURL(current);
                       return "";

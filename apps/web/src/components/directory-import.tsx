@@ -1,29 +1,36 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { trpc } from "@/lib/trpc";
 import {
   applyMapping,
   DIRECTORY_FIELDS,
+  duplicateMappedHeaders,
   emptyColumnMapping,
-  requiredFieldsMapped,
+  explainImportRow,
+  IMPORT_TEMPLATE_EXAMPLE_ROWS,
+  IMPORT_TEMPLATE_HEADERS,
+  mappingIsReady,
   suggestMapping,
   validateImportRows,
   type ColumnMapping,
-  type ImportErrorCode,
+  type ImportIssue,
 } from "@/lib/directory-import";
 import { Button, Card, Label, Select } from "@/components/ui";
 
 const FIELD_LABEL_KEY = {
-  displayName: "name",
+  firstName: "firstName",
+  lastName: "lastName",
   jobTitle: "jobTitle",
   email: "email",
   mobile: "mobile",
-  department: "department",
   country: "country",
-  photoUrl: "photo",
+  department: "department",
+  displayName: "name",
 } as const;
+
+const REQUIRED_MAP_FIELDS = new Set(["firstName", "lastName", "jobTitle", "email"]);
 
 type Step = "upload" | "map" | "preview" | "done";
 
@@ -41,6 +48,7 @@ export function DirectoryImport({
 }) {
   const t = useTranslations("directory");
   const tc = useTranslations("common");
+  const locale = useLocale() === "en" ? "en" : "tr";
   const utils = trpc.useUtils();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -88,9 +96,10 @@ export function DirectoryImport({
   };
 
   const confirm = async () => {
+    if (preview.errors.length > 0 || preview.valid.length === 0) return;
     setError("");
     try {
-      const data = await importMutation.mutateAsync({ rows: mappedRows });
+      const data = await importMutation.mutateAsync({ rows: preview.valid });
       setResult({ created: data.created, updated: data.updated, failed: data.failed });
       await utils.users.list.invalidate();
       setStep("done");
@@ -99,7 +108,21 @@ export function DirectoryImport({
     }
   };
 
-  const errorLabel = (code: ImportErrorCode) => t(`errors.${code}`);
+  const downloadTemplate = async () => {
+    const XLSX = await import("xlsx");
+    const workbook = XLSX.utils.book_new();
+    const sheet = XLSX.utils.aoa_to_sheet([
+      [...IMPORT_TEMPLATE_HEADERS],
+      ...IMPORT_TEMPLATE_EXAMPLE_ROWS.map((row) => [...row]),
+    ]);
+    XLSX.utils.book_append_sheet(workbook, sheet, "Kisiler");
+    XLSX.writeFile(workbook, "ornek-toplu-ice-aktarma.xlsx");
+  };
+
+  const errorLabel = (issues: ImportIssue[]) => explainImportRow(issues, locale);
+  const duplicates = duplicateMappedHeaders(mapping);
+  const canMapNext = mappingIsReady(mapping);
+  const canConfirm = preview.errors.length === 0 && preview.valid.length > 0 && !importMutation.isPending;
 
   return (
     <Card className="space-y-5">
@@ -125,7 +148,40 @@ export function DirectoryImport({
       </ol>
 
       {step === "upload" ? (
-        <div className="space-y-3">
+        <div className="space-y-4">
+          <p className="text-sm leading-6 text-lead">{t("importTemplateWarn")}</p>
+          <div className="group relative inline-block">
+            <Button type="button" variant="secondary" onClick={() => void downloadTemplate()}>
+              {t("importTemplateButton")}
+            </Button>
+            <div className="invisible absolute left-0 top-full z-20 mt-2 w-[min(36rem,calc(100vw-3rem))] border border-rule bg-paper p-3 opacity-0 shadow-md transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+              <p className="mb-2 text-xs text-lead">{t("importTemplateHoverHint")}</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr>
+                      {IMPORT_TEMPLATE_HEADERS.map((header) => (
+                        <th key={header} className="border border-rule px-2 py-1 font-medium">
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {IMPORT_TEMPLATE_EXAMPLE_ROWS.map((row, rowIndex) => (
+                      <tr key={rowIndex}>
+                        {row.map((cell, cellIndex) => (
+                          <td key={cellIndex} className="border border-rule px-2 py-1">
+                            {cell}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
           <input
             ref={fileRef}
             type="file"
@@ -133,9 +189,12 @@ export function DirectoryImport({
             className="hidden"
             onChange={(e) => void parseFile(e.target.files?.[0])}
           />
-          <Button type="button" onClick={() => fileRef.current?.click()} disabled={parsing}>
-            {parsing ? tc("loading") : t("chooseFile")}
-          </Button>
+          <div>
+            <Button type="button" onClick={() => fileRef.current?.click()} disabled={parsing}>
+              {parsing ? tc("loading") : t("chooseFile")}
+            </Button>
+            <p className="mt-2 text-xs text-lead">{t("importFileHint")}</p>
+          </div>
         </div>
       ) : null}
 
@@ -147,9 +206,7 @@ export function DirectoryImport({
               <div key={field} className="grid gap-2 sm:grid-cols-[10rem_1fr] sm:items-center">
                 <Label>
                   {t(FIELD_LABEL_KEY[field])}
-                  {field === "displayName" || field === "jobTitle" || field === "email" ? (
-                    <span className="text-lead"> *</span>
-                  ) : null}
+                  {REQUIRED_MAP_FIELDS.has(field) ? <span className="text-lead"> *</span> : null}
                 </Label>
                 <div>
                   <Select
@@ -177,12 +234,12 @@ export function DirectoryImport({
               </div>
             ))}
           </div>
+          {duplicates.length > 0 ? (
+            <p className="text-sm text-seal">{t("importDuplicateColumns", { columns: duplicates.join(", ") })}</p>
+          ) : null}
+          <p className="text-xs text-lead">{t("importMappingHint")}</p>
           <div className="flex gap-2">
-            <Button
-              type="button"
-              onClick={() => setStep("preview")}
-              disabled={!requiredFieldsMapped(mapping)}
-            >
+            <Button type="button" onClick={() => setStep("preview")} disabled={!canMapNext}>
               {t("next")}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setStep("upload")}>
@@ -208,21 +265,29 @@ export function DirectoryImport({
               })}
             </span>
           </div>
-          {preview.errors.length > 0 ? (
+          {preview.valid.length > 0 ? (
             <div className="max-h-56 overflow-auto border border-rule">
               <table className="w-full text-sm">
                 <thead className="border-b border-rule">
                   <tr>
-                    <th className="px-3 py-2 text-left font-medium">{t("rowNumber")}</th>
-                    <th className="px-3 py-2 text-left font-medium">{t("errorReason")}</th>
+                    <th className="px-3 py-2 text-left font-medium">{t("name")}</th>
+                    <th className="px-3 py-2 text-left font-medium">{t("jobTitle")}</th>
+                    <th className="px-3 py-2 text-left font-medium">{t("email")}</th>
+                    <th className="px-3 py-2 text-left font-medium">{t("mobile")}</th>
+                    <th className="px-3 py-2 text-left font-medium">{t("country")}</th>
+                    <th className="px-3 py-2 text-left font-medium">{t("importAction")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {preview.errors.map((row) => (
-                    <tr key={row.rowNumber} className="border-b border-rule">
-                      <td className="px-3 py-2 tabular-nums">{row.rowNumber}</td>
+                  {preview.valid.slice(0, 20).map((row) => (
+                    <tr key={`${row.rowNumber}-${row.email}`} className="border-b border-rule">
+                      <td className="px-3 py-2">{row.displayName}</td>
+                      <td className="px-3 py-2">{row.jobTitle}</td>
+                      <td className="px-3 py-2">{row.email}</td>
+                      <td className="px-3 py-2">{row.mobile ?? "—"}</td>
+                      <td className="px-3 py-2">{row.country ?? "—"}</td>
                       <td className="px-3 py-2">
-                        {row.codes.map((code) => errorLabel(code)).join(", ")}
+                        {row.action === "create" ? t("importActionCreate") : t("importActionUpdate")}
                       </td>
                     </tr>
                   ))}
@@ -230,12 +295,33 @@ export function DirectoryImport({
               </table>
             </div>
           ) : null}
+          {preview.errors.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-sm text-seal">{t("importStrictBlock")}</p>
+              <div className="max-h-56 overflow-auto border border-rule">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-rule">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">{t("rowNumber")}</th>
+                      <th className="px-3 py-2 text-left font-medium">{t("errorReason")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.errors.map((row) => (
+                      <tr key={row.rowNumber} className="border-b border-rule">
+                        <td className="px-3 py-2 tabular-nums">{row.rowNumber}</td>
+                        <td className="px-3 py-2">
+                          {errorLabel(row.issues)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
           <div className="flex gap-2">
-            <Button
-              type="button"
-              onClick={() => void confirm()}
-              disabled={importMutation.isPending || preview.valid.length === 0}
-            >
+            <Button type="button" onClick={() => void confirm()} disabled={!canConfirm}>
               {importMutation.isPending ? t("importing") : t("confirmImport")}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setStep("map")}>
@@ -268,7 +354,7 @@ export function DirectoryImport({
                     <tr key={row.rowNumber} className="border-b border-rule">
                       <td className="px-3 py-2 tabular-nums">{row.rowNumber}</td>
                       <td className="px-3 py-2">
-                        {row.codes.map((code) => errorLabel(code)).join(", ")}
+                          {errorLabel(row.issues)}
                       </td>
                     </tr>
                   ))}

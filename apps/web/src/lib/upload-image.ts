@@ -1,10 +1,11 @@
 export async function uploadImageFile(
   file: File,
-  options?: { slot?: string },
+  options?: { slot?: string; filenameStem?: string },
 ): Promise<{ url: string; bytes: number; width?: number; height?: number }> {
   const formData = new FormData();
   formData.append("file", file);
   if (options?.slot) formData.append("slot", options.slot);
+  if (options?.filenameStem) formData.append("filenameStem", options.filenameStem);
   const res = await fetch("/api/upload", { method: "POST", body: formData });
   let data: { url?: string; bytes?: number; width?: number; height?: number; error?: string };
   try {

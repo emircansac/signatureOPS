@@ -113,6 +113,13 @@ describe("compile", () => {
     });
   }
 
+  it("prefixes mobile numbers with the country calling code", () => {
+    const result = compile(fixtures.full!, baseContext);
+    expect(result.html).toContain("+90 555 123 4567");
+    expect(result.html).toContain("tel:+905551234567");
+    expect(result.html).not.toContain("(555) 123-4567");
+  });
+
   it("hides blocks based on visibility", () => {
     const result = compile(fixtures.conditional!, baseContext, {
       visibility: { recipientType: "external" },

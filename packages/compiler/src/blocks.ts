@@ -9,7 +9,9 @@ import type {
 } from "@signatureops/schema";
 import {
   evaluateVisibleWhen,
+  formatPhone,
   normalizeSocialPlatform,
+  phoneTelHref,
   resolvePlaceholders,
 } from "@signatureops/schema";
 import { escapeHtml } from "./escape.js";
@@ -161,8 +163,12 @@ function renderContact(fields: string[], context: CompileContext): string {
         return `<p style="font-family:Arial,sans-serif;font-size:12px;color:#555555;margin:0;padding:0;"><a href="mailto:${escapeHtml(value)}" style="color:${link};text-decoration:none;">${escapeHtml(value)}</a></p>`;
       }
       if (field === "mobile" || field === "officePhone") {
-        const tel = value.replace(/\D/g, "");
-        return `<p style="font-family:Arial,sans-serif;font-size:12px;color:#555555;margin:0;padding:0;"><a href="tel:${escapeHtml(tel)}" style="color:${link};text-decoration:none;">${escapeHtml(value)}</a></p>`;
+        const raw = field === "mobile" ? context.user.user.mobile : context.user.user.officePhone;
+        if (!raw?.trim()) return "";
+        const country = context.user.user.country;
+        const display = formatPhone(raw, country);
+        const tel = phoneTelHref(raw, country);
+        return `<p style="font-family:Arial,sans-serif;font-size:12px;color:#555555;margin:0;padding:0;"><a href="tel:${escapeHtml(tel)}" style="color:${link};text-decoration:none;">${escapeHtml(display)}</a></p>`;
       }
       return `<p style="font-family:Arial,sans-serif;font-size:12px;color:#555555;margin:0;padding:0;">${escapeHtml(value)}</p>`;
     })

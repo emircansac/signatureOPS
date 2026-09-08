@@ -146,7 +146,7 @@ export default function DirectoryPage() {
                   <td className="px-4 py-3 font-medium">{user.displayName}</td>
                   <td className="px-4 py-3">{user.jobTitle?.trim() || "—"}</td>
                   <td className="px-4 py-3 tabular-nums">
-                    {user.mobile?.trim() ? formatPhone(user.mobile) : "—"}
+                    {user.mobile?.trim() ? formatPhone(user.mobile, user.country) : "—"}
                   </td>
                   <td className="px-4 py-3">{user.email}</td>
                   <td className="px-4 py-3">{user.department ?? "—"}</td>

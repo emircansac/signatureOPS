@@ -1,17 +1,33 @@
+import { joinDisplayName } from "./person-name";
+import { normalizeNationalNumber, normalizeStoredCountry, resolveCountryCode } from "@signatureops/schema";
+
+export const IMPORT_TEMPLATE_HEADERS = [
+  "Ad",
+  "Soyad",
+  "Pozisyon",
+  "E-posta",
+  "Mobil",
+  "Ülke",
+  "Departman",
+] as const;
+
+export const IMPORT_TEMPLATE_EXAMPLE_ROWS: string[][] = [
+  ["Ayşe", "Yılmaz", "Satış Müdürü", "ayse@ornek.com", "5531822664", "TR", "Satış"],
+  ["Mehmet", "Demir", "Satış Direktörü", "mehmet@ornek.com", "5559876543", "TR", "Satış"],
+];
+
 export const DIRECTORY_FIELDS = [
-  "displayName",
+  "firstName",
+  "lastName",
   "jobTitle",
   "email",
   "mobile",
-  "department",
   "country",
-  "photoUrl",
+  "department",
+  "displayName",
 ] as const;
 
 export type DirectoryField = (typeof DIRECTORY_FIELDS)[number];
-
-export const REQUIRED_DIRECTORY_FIELDS = ["displayName", "jobTitle", "email"] as const;
-export type RequiredDirectoryField = (typeof REQUIRED_DIRECTORY_FIELDS)[number];
 
 export type ColumnMapping = Record<DirectoryField, string | null>;
 
@@ -23,18 +39,31 @@ export type MappedPersonRow = {
   mobile?: string;
   department?: string;
   country?: string;
-  photoUrl?: string;
 };
 
 export type ImportErrorCode =
   | "missingName"
+  | "missingFirstName"
+  | "missingLastName"
   | "missingTitle"
   | "missingEmail"
+  | "missingCountryForMobile"
   | "invalidEmail"
+  | "invalidMobile"
+  | "unknownCountry"
   | "duplicateEmail";
+
+export type ImportIssueField = "name" | "jobTitle" | "email" | "mobile" | "country";
+
+export type ImportIssue = {
+  code: ImportErrorCode;
+  field: ImportIssueField;
+  value: string;
+};
 
 export type ImportRowError = {
   rowNumber: number;
+  issues: ImportIssue[];
   codes: ImportErrorCode[];
 };
 
@@ -50,16 +79,16 @@ export type ImportPreview = {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const FIELD_ALIASES: Record<DirectoryField, string[]> = {
+  firstName: ["first name", "firstname", "given name", "givenname", "isim", "ad"],
+  lastName: ["last name", "lastname", "surname", "family name", "soyad", "soy isim"],
   displayName: [
-    "name",
-    "ad",
     "full name",
     "fullname",
     "display name",
     "displayname",
     "ad soyad",
     "adsoyad",
-    "isim",
+    "name",
   ],
   jobTitle: [
     "job title",
@@ -70,7 +99,7 @@ const FIELD_ALIASES: Record<DirectoryField, string[]> = {
     "unvan",
     "role",
   ],
-  email: ["email", "e posta", "eposta", "mail", "e mail"],
+  email: ["email", "e posta", "eposta", "mail", "e mail", "e-posta"],
   mobile: [
     "mobile",
     "mobil",
@@ -82,17 +111,7 @@ const FIELD_ALIASES: Record<DirectoryField, string[]> = {
     "phone number",
   ],
   department: ["department", "departman", "dept", "birim"],
-  country: ["country", "ulke", "country code"],
-  photoUrl: [
-    "photo",
-    "fotograf",
-    "photo url",
-    "photourl",
-    "image",
-    "picture",
-    "avatar",
-    "foto",
-  ],
+  country: ["country", "ulke", "ulke kodu", "country code"],
 };
 
 export function normalizeHeader(value: string): string {
@@ -104,15 +123,21 @@ export function normalizeHeader(value: string): string {
     .trim();
 }
 
+function headerMatchesAlias(normalized: string, alias: string): boolean {
+  if (normalized === alias) return true;
+  return alias.length >= 4 && normalized.includes(alias);
+}
+
 export function emptyColumnMapping(): ColumnMapping {
   return {
-    displayName: null,
+    firstName: null,
+    lastName: null,
     jobTitle: null,
     email: null,
     mobile: null,
-    department: null,
     country: null,
-    photoUrl: null,
+    department: null,
+    displayName: null,
   };
 }
 
@@ -126,7 +151,7 @@ export function suggestMapping(headers: string[]): ColumnMapping {
       if (used.has(header)) return false;
       const normalized = normalizeHeader(header);
       if (!normalized) return false;
-      return aliases.some((alias) => normalized === alias || normalized.includes(alias));
+      return aliases.some((alias) => headerMatchesAlias(normalized, alias));
     });
     if (match) {
       mapping[field] = match;
@@ -138,7 +163,22 @@ export function suggestMapping(headers: string[]): ColumnMapping {
 }
 
 export function requiredFieldsMapped(mapping: ColumnMapping): boolean {
-  return REQUIRED_DIRECTORY_FIELDS.every((field) => Boolean(mapping[field]));
+  const hasSplitName = Boolean(mapping.firstName && mapping.lastName);
+  const hasFullName = Boolean(mapping.displayName);
+  return (hasSplitName || hasFullName) && Boolean(mapping.jobTitle) && Boolean(mapping.email);
+}
+
+export function duplicateMappedHeaders(mapping: ColumnMapping): string[] {
+  const counts = new Map<string, number>();
+  for (const value of Object.values(mapping)) {
+    if (!value) continue;
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
+  return [...counts.entries()].filter(([, count]) => count > 1).map(([header]) => header);
+}
+
+export function mappingIsReady(mapping: ColumnMapping): boolean {
+  return requiredFieldsMapped(mapping) && duplicateMappedHeaders(mapping).length === 0;
 }
 
 function cell(row: Record<string, string>, header: string | null): string | undefined {
@@ -157,16 +197,21 @@ export function applyMapping(
     headers.forEach((header, i) => {
       record[header] = (values[i] ?? "").trim();
     });
+    const firstName = cell(record, mapping.firstName) ?? "";
+    const lastName = cell(record, mapping.lastName) ?? "";
+    const combined = cell(record, mapping.displayName) ?? "";
+    const displayName = firstName.trim() || lastName.trim()
+      ? joinDisplayName(firstName, lastName)
+      : combined;
     const mapped: MappedPersonRow = {
       rowNumber: headerRowNumber + 1 + index,
-      displayName: cell(record, mapping.displayName) ?? "",
+      displayName,
       jobTitle: cell(record, mapping.jobTitle) ?? "",
       email: cell(record, mapping.email) ?? "",
     };
     if (mapping.mobile) mapped.mobile = cell(record, mapping.mobile) ?? "";
     if (mapping.department) mapped.department = cell(record, mapping.department) ?? "";
     if (mapping.country) mapped.country = cell(record, mapping.country) ?? "";
-    if (mapping.photoUrl) mapped.photoUrl = cell(record, mapping.photoUrl) ?? "";
     return mapped;
   });
 }
@@ -181,6 +226,53 @@ export function isValidEmail(email: string): boolean {
   return EMAIL_RE.test(trimmed) && !trimmed.includes(" ");
 }
 
+function issue(code: ImportErrorCode, field: ImportIssueField, value: string): ImportIssue {
+  return { code, field, value: value.trim() };
+}
+
+const IMPORT_ERROR_EXPLAIN = {
+  tr: {
+    missingName: "Ad Soyad boş. Şablondaki Ad ve Soyad kolonlarını doldurun.",
+    missingFirstName: "Ad kolonu boş.",
+    missingLastName:
+      "Soyad eksik. Hücrede yalnızca “{value}” var; Ad ve Soyad ayrı yazılmalı (ör. Ayşe / Yılmaz).",
+    missingTitle: "Pozisyon kolonu boş.",
+    missingEmail: "E-posta kolonu boş.",
+    missingCountryForMobile:
+      "Mobil dolu (“{value}”) ama Ülke boş. Ülke kolonuna TR, US veya DE yazın.",
+    invalidEmail: "E-posta geçersiz: “{value}”. Örnek: ayse@ornek.com",
+    invalidMobile:
+      "Mobil geçersiz: “{value}”. Ülke kodu yazmadan 5531822664 gibi ulusal numara girin.",
+    unknownCountry: "Ülke tanınmadı: “{value}”. TR, US, DE gibi kod kullanın.",
+    duplicateEmail: "Bu e-posta dosyada birden fazla kez geçiyor: “{value}”.",
+  },
+  en: {
+    missingName: "Full name is empty. Fill the First name and Last name columns.",
+    missingFirstName: "First name is empty.",
+    missingLastName:
+      "Last name is missing. The cell only has “{value}”; put given and family names in separate columns.",
+    missingTitle: "Title is empty.",
+    missingEmail: "Email is empty.",
+    missingCountryForMobile:
+      "Mobile is filled (“{value}”) but Country is empty. Use TR, US, or DE in the country column.",
+    invalidEmail: "Email is invalid: “{value}”. Example: ayse@ornek.com",
+    invalidMobile:
+      "Mobile is invalid: “{value}”. Enter the national number without a country code, e.g. 5531822664.",
+    unknownCountry: "Unknown country: “{value}”. Use a code such as TR, US, or DE.",
+    duplicateEmail: "This email appears more than once in the file: “{value}”.",
+  },
+} as const;
+
+export function explainImportIssue(issue: ImportIssue, locale: "tr" | "en" = "tr"): string {
+  const template = IMPORT_ERROR_EXPLAIN[locale][issue.code];
+  const value = issue.value.trim() || (locale === "tr" ? "boş" : "empty");
+  return template.replaceAll("{value}", value);
+}
+
+export function explainImportRow(issues: ImportIssue[], locale: "tr" | "en" = "tr"): string {
+  return issues.map((item) => explainImportIssue(item, locale)).join(" ");
+}
+
 export function validateImportRows(
   rows: MappedPersonRow[],
   existingEmails: Iterable<string>,
@@ -193,32 +285,62 @@ export function validateImportRows(
   const errors: ImportRowError[] = [];
 
   for (const row of rows) {
-    const codes: ImportErrorCode[] = [];
     const name = row.displayName.trim();
     const title = row.jobTitle.trim();
     const email = row.email.trim();
+    const mobileRaw = row.mobile?.trim() ?? "";
+    const countryRaw = row.country?.trim() ?? "";
+    const department = row.department?.trim() ?? "";
 
-    if (!name) codes.push("missingName");
-    if (!title) codes.push("missingTitle");
-    if (!email) codes.push("missingEmail");
-    else if (!isValidEmail(email)) codes.push("invalidEmail");
+    if (!name && !title && !email && !mobileRaw && !countryRaw && !department) {
+      continue;
+    }
+
+    const issues: ImportIssue[] = [];
+    const parts = name.split(/\s+/).filter(Boolean);
+    if (!name) issues.push(issue("missingName", "name", name));
+    else if (parts.length < 2) issues.push(issue("missingLastName", "name", name));
+    if (!title) issues.push(issue("missingTitle", "jobTitle", title));
+    if (!email) issues.push(issue("missingEmail", "email", email));
+    else if (!isValidEmail(email)) issues.push(issue("invalidEmail", "email", email));
+
+    const country = countryRaw ? normalizeStoredCountry(countryRaw) : null;
+    if (countryRaw && !resolveCountryCode(countryRaw)) {
+      issues.push(issue("unknownCountry", "country", countryRaw));
+    }
+
+    let mobile: string | undefined;
+    if (mobileRaw) {
+      if (!countryRaw) issues.push(issue("missingCountryForMobile", "country", mobileRaw));
+      const national = normalizeNationalNumber(mobileRaw, country);
+      if (national.length < 7 || national.length > 15) {
+        issues.push(issue("invalidMobile", "mobile", mobileRaw));
+      } else mobile = national;
+    }
 
     const key = normalizeEmail(email);
     if (email && isValidEmail(email) && seenInFile.has(key)) {
-      codes.push("duplicateEmail");
+      issues.push(issue("duplicateEmail", "email", email));
     }
 
-    if (codes.length > 0) {
-      errors.push({ rowNumber: row.rowNumber, codes });
+    if (issues.length > 0) {
+      errors.push({
+        rowNumber: row.rowNumber,
+        issues,
+        codes: issues.map((item) => item.code),
+      });
       continue;
     }
 
     seenInFile.add(key);
     valid.push({
-      ...row,
       displayName: name,
       jobTitle: title,
       email,
+      rowNumber: row.rowNumber,
+      ...(mobile ? { mobile } : {}),
+      ...(department ? { department } : {}),
+      ...(country ? { country } : {}),
       action: existing.has(key) ? "update" : "create",
     });
   }

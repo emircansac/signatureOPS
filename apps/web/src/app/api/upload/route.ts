@@ -27,7 +27,9 @@ export async function POST(req: Request) {
 
     const slotRaw = formData.get("slot");
     const slot = typeof slotRaw === "string" && slotRaw.length > 0 ? slotRaw : undefined;
-    const stored = await storeUpload(file, session.orgId, { slot });
+    const stemRaw = formData.get("filenameStem");
+    const filenameStem = typeof stemRaw === "string" && stemRaw.length > 0 ? stemRaw : undefined;
+    const stored = await storeUpload(file, session.orgId, { slot, filenameStem });
     return Response.json(stored);
   } catch (error) {
     console.error("Upload error:", error);
