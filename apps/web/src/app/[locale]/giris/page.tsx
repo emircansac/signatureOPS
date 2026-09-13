@@ -7,17 +7,20 @@ import { isAuthBypassed } from "@/lib/auth-bypass";
 
 export default async function LoginPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { locale } = await params;
+  const { error } = await searchParams;
   setRequestLocale(locale);
   const session = await auth();
 
-  if (session?.orgSlug) {
+  if (!error && session?.orgSlug) {
     redirect(`/${locale}/app/${session.orgSlug}`);
   }
-  if (session?.user) {
+  if (!error && session?.user) {
     redirect(`/${locale}/onboarding`);
   }
 
@@ -31,6 +34,11 @@ export default async function LoginPage({
           {t("signInTitle")}
         </h1>
         <p className="mt-4 max-w-md text-[1.02rem] leading-7 text-lead">{t("signInHint")}</p>
+        {error ? (
+          <p className="mt-4 max-w-md text-sm text-seal" role="alert">
+            {error === "Configuration" ? t("configError") : t("signInError")}
+          </p>
+        ) : null}
         {isAuthBypassed() ? (
           <p className="mt-8 max-w-md text-[1.02rem] leading-7 text-lead">
             Google girişi şimdilik kapalı. Panel için `pnpm db:seed` çalıştırın.

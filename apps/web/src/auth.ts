@@ -52,6 +52,15 @@ async function attachOrg(token: JWT): Promise<JWT> {
   }
 }
 
+if (process.env.NODE_ENV === "production") {
+  if (!authConfig.secret) {
+    console.error("AUTH_SECRET is missing; Google sign-in returns Configuration");
+  }
+  if (authConfig.providers.length === 0) {
+    console.error("GOOGLE_CLIENT_ID/SECRET missing; Google sign-in returns Configuration");
+  }
+}
+
 const nextAuth = NextAuth({
   ...authConfig,
   callbacks: {
@@ -99,5 +108,10 @@ export async function auth() {
     const bypass = await getDevBypassSession();
     if (bypass) return bypass;
   }
-  return nextAuth.auth();
+  try {
+    return await nextAuth.auth();
+  } catch (error) {
+    console.error("auth() failed", error);
+    return null;
+  }
 }

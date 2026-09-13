@@ -10,6 +10,12 @@ import "../globals.css";
 export const metadata: Metadata = {
   title: "SignatureOps",
   description: "Privacy-first email signature management",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "32x32" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+  },
 };
 
 type Props = {

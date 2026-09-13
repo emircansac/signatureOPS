@@ -580,6 +580,8 @@
     "signIn": "Sign in",
     "signInTitle": "Sign in",
     "signInHint": "Continue with Google to open your signature panel.",
+    "signInError": "Google sign-in did not finish. Please try again.",
+    "configError": "Sign-in is missing a server setting. On Vercel, check AUTH_SECRET, AUTH_URL (the public site URL, not localhost), and the Google OAuth credentials.",
     "continueGoogle": "Continue with Google",
     "goToPanel": "Go to signature panel",
     "finishSetup": "Create organization",
