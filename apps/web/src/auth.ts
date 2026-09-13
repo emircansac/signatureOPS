@@ -52,28 +52,24 @@ async function attachOrg(token: JWT): Promise<JWT> {
   }
 }
 
-if (process.env.NODE_ENV === "production") {
-  if (!authConfig.secret) {
-    console.error("AUTH_SECRET is missing; Google sign-in returns Configuration");
-  }
-  if (authConfig.providers.length === 0) {
-    console.error("GOOGLE_CLIENT_ID/SECRET missing; Google sign-in returns Configuration");
-  }
-}
-
 const nextAuth = NextAuth({
   ...authConfig,
   callbacks: {
     async jwt({ token, account, profile }) {
-      if (account?.provider === "google" && profile?.sub) {
-        token.googleSub = profile.sub;
-        if (profile.email) token.email = profile.email;
-        if (profile.name) token.name = profile.name;
+      try {
+        if (account?.provider === "google" && profile?.sub) {
+          token.googleSub = profile.sub;
+          if (profile.email) token.email = profile.email;
+          if (profile.name) token.name = profile.name;
+        }
+        if (token.googleSub || token.email) {
+          return await attachOrg(token);
+        }
+        return token;
+      } catch (error) {
+        console.error("jwt callback failed", error);
+        return token;
       }
-      if (token.googleSub || token.email) {
-        return attachOrg(token);
-      }
-      return token;
     },
     session: authConfig.callbacks?.session,
   },

@@ -581,7 +581,7 @@
     "signInTitle": "Giriş Yap",
     "signInHint": "İmza paneline ulaşmak için Google hesabınızla devam edin.",
     "signInError": "Google ile giriş tamamlanamadı. Lütfen tekrar deneyin.",
-    "configError": "Sunucu oturum ayarı eksik. Vercel’de AUTH_SECRET, AUTH_URL (site adresi, localhost değil) ve Google OAuth bilgilerini kontrol edin.",
+    "configError": "Google dönüşünde oturum açılamadı. Bir kez daha deneyin; tarayıcı çerezlerini bu site için temizlemeniz gerekebilir.",
     "continueGoogle": "Google ile devam et",
     "goToPanel": "İmza paneline git",
     "finishSetup": "Kurumu oluştur",

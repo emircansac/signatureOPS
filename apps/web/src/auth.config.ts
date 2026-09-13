@@ -1,27 +1,21 @@
 import Google from "next-auth/providers/google";
 import type { NextAuthConfig } from "next-auth";
-import { authSecret, googleAuthCredentials, sanitizeAuthEnv } from "./lib/auth-env";
+import { sanitizeAuthEnv } from "./lib/auth-env";
 
 sanitizeAuthEnv();
 
-const google = googleAuthCredentials();
-const secret = authSecret();
-
 export const authConfig = {
   trustHost: true,
-  ...(secret ? { secret } : {}),
   pages: {
     signIn: "/tr/giris",
     error: "/tr/giris",
   },
-  providers: google
-    ? [
-        Google({
-          clientId: google.clientId,
-          clientSecret: google.clientSecret,
-        }),
-      ]
-    : [],
+  providers: [
+    Google({
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }),
+  ],
   session: { strategy: "jwt" },
   callbacks: {
     session({ session, token }) {
