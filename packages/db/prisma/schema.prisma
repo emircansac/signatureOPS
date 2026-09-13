@@ -50,6 +50,8 @@ model Organization {
   id                     String   @id @default(cuid())
   name                   String
   slug                   String   @unique
+  intro                  String?
+  legalDisclaimer        String?
   brandColors            String   @default("[]")
   socialIconMode         String   @default("standard")
   onboardingSkipCampaign Boolean  @default(false)

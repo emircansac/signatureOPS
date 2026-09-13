@@ -10,7 +10,7 @@ import {
   type BrandColor,
 } from "@/lib/identity";
 import { ImageSlotEditor } from "@/components/image-slot-editor";
-import { Button, Card, Input, Label } from "@/components/ui";
+import { Button, Card, Input, Label, Textarea } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 const MAX_COLORS = 6;
@@ -32,6 +32,7 @@ export function IdentityPanel() {
     <div className="space-y-8">
       <section className="space-y-4">
         <h2 className="text-[15px] font-medium text-ink">{t("basic")}</h2>
+        <OrgCopyCard intro={data.intro} legalDisclaimer={data.legalDisclaimer} />
         <Card className="space-y-5">
           <div>
             <h2 className="text-[15px] font-medium text-ink">{t("logo")}</h2>
@@ -127,6 +128,78 @@ export function IdentityPanel() {
         </section>
       ) : null}
     </div>
+  );
+}
+
+function OrgCopyCard({ intro, legalDisclaimer }: { intro: string; legalDisclaimer: string }) {
+  const t = useTranslations("identity");
+  const tc = useTranslations("common");
+  const utils = trpc.useUtils();
+  const [copy, setCopy] = useState({ intro, legalDisclaimer });
+  const copyRef = useRef(copy);
+  copyRef.current = copy;
+  const [error, setError] = useState("");
+  const save = trpc.identity.setCopy.useMutation({
+    onSuccess: (next) => {
+      setCopy(next);
+      utils.identity.get.invalidate();
+      utils.org.dashboard.invalidate();
+      setError("");
+    },
+    onError: (err) => setError(err.message),
+  });
+
+  useEffect(() => {
+    if (copyRef.current.intro === intro && copyRef.current.legalDisclaimer === legalDisclaimer) return;
+    setCopy({ intro, legalDisclaimer });
+  }, [intro, legalDisclaimer]);
+
+  const dirty = copy.intro !== intro || copy.legalDisclaimer !== legalDisclaimer;
+
+  return (
+    <Card className="space-y-5">
+      <div>
+        <h2 className="text-[15px] font-medium text-ink">{t("orgCopy")}</h2>
+        <p className="mt-1 text-sm text-lead">{t("orgCopyHint")}</p>
+      </div>
+      <div>
+        <Label htmlFor="org-intro">{t("intro")}</Label>
+        <Textarea
+          id="org-intro"
+          rows={3}
+          maxLength={280}
+          className="font-sans"
+          value={copy.intro}
+          onChange={(e) => {
+            setError("");
+            setCopy((current) => ({ ...current, intro: e.target.value }));
+          }}
+        />
+        <p className="mt-1 text-xs text-lead">{t("introHint")}</p>
+      </div>
+      <div>
+        <Label htmlFor="org-legal">{t("legalDisclaimer")}</Label>
+        <Textarea
+          id="org-legal"
+          rows={4}
+          maxLength={1000}
+          className="font-sans"
+          value={copy.legalDisclaimer}
+          onChange={(e) => {
+            setError("");
+            setCopy((current) => ({ ...current, legalDisclaimer: e.target.value }));
+          }}
+        />
+        <p className="mt-1 text-xs text-lead">{t("legalDisclaimerHint")}</p>
+      </div>
+      <Button
+        onClick={() => save.mutate(copy)}
+        disabled={!dirty || copy.intro.trim().length < 10 || save.isPending}
+      >
+        {save.isPending ? "..." : tc("save")}
+      </Button>
+      {error ? <p className="text-sm text-seal">{error}</p> : null}
+    </Card>
   );
 }
 

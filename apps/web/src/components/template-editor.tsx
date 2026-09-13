@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import type { TemplateDefinition, Block } from "@signatureops/schema";
+import type { TemplateDefinition, Block, Layout, TemplateColumn } from "@signatureops/schema";
+import { assignMissingColumns, blockColumn, defaultBlockColumn } from "@signatureops/schema";
 import { trpc } from "@/lib/trpc";
 import { BlockConfig } from "@/components/block-config";
 import { EmailComposePreview } from "@/components/email-compose-preview";
-import { Badge, Button, Card, Input, Label, Select } from "@/components/ui";
+import { copySignatureHtml } from "@/lib/copy-signature";
+import { LintScoreBar } from "@/components/lint-score-bar";
+import { Button, Card, Input, Label, Select } from "@/components/ui";
 
 const BLOCK_TYPES = [
   "identity",
@@ -25,7 +28,7 @@ const BLOCK_TYPES = [
 
 function defaultBlock(
   type: (typeof BLOCK_TYPES)[number],
-  ids: { logo?: string; banner?: string },
+  ids: { logo?: string; banner?: string; legalDisclaimer?: string },
 ): Block {
   switch (type) {
     case "identity":
@@ -47,7 +50,11 @@ function defaultBlock(
     case "campaign_banner":
       return { type: "campaign_banner", campaignId: "", assetId: ids.banner ?? "" };
     case "legal_disclaimer":
-      return { type: "legal_disclaimer", text: "Confidential. {{organization.name}}", assetId: "" };
+      return {
+        type: "legal_disclaimer",
+        text: ids.legalDisclaimer?.trim() || "Confidential. {{organization.name}}",
+        assetId: "",
+      };
     case "certifications":
       return { type: "certifications", assetIds: [] };
     case "custom_text":
@@ -88,27 +95,48 @@ export function TemplateEditor({
   const { data: users } = trpc.users.list.useQuery();
   const { data: identity } = trpc.identity.get.useQuery();
   const [previewUserId, setPreviewUserId] = useState<string>("");
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"rich" | "source" | false>(false);
 
   const { data: preview, refetch: refetchPreview } = trpc.templates.compilePreview.useQuery(
     { definition, userId: previewUserId || users?.[0]?.id || "", templateId },
     { enabled: !!(previewUserId || users?.[0]?.id), staleTime: 0, refetchOnMount: "always" },
   );
 
-  const copyHtml = async () => {
+  const copyHtml = async (mode: "rich" | "source") => {
     if (!preview?.html) return;
-    await navigator.clipboard.writeText(preview.html);
-    setCopied(true);
+    await copySignatureHtml(preview.html, mode);
+    setCopied(mode);
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const setLayout = (layout: Layout) => {
+    if (layout === "two-column") {
+      setDefinition(assignMissingColumns({ ...definition, layout }));
+      return;
+    }
+    setDefinition({ ...definition, layout });
+  };
+
   const moveBlock = (index: number, direction: -1 | 1) => {
+    const column = blockColumn(definition.blocks[index]!, definition.layout);
+    const siblings = definition.blocks
+      .map((_, i) => i)
+      .filter((i) => blockColumn(definition.blocks[i]!, definition.layout) === column);
+    const position = siblings.indexOf(index);
+    const swapWith = siblings[position + direction];
+    if (swapWith === undefined) return;
     const newBlocks = [...definition.blocks];
-    const target = index + direction;
-    if (target < 0 || target >= newBlocks.length) return;
-    [newBlocks[index], newBlocks[target]] = [newBlocks[target]!, newBlocks[index]!];
+    [newBlocks[index], newBlocks[swapWith]] = [newBlocks[swapWith]!, newBlocks[index]!];
     setDefinition({ ...definition, blocks: newBlocks });
-    setActiveBlockIndex(target);
+    setActiveBlockIndex(swapWith);
+  };
+
+  const moveBlockToColumn = (index: number, column: TemplateColumn) => {
+    const blocks = [...definition.blocks];
+    const current = blocks[index];
+    if (!current) return;
+    blocks[index] = { ...current, column };
+    setDefinition({ ...definition, blocks });
   };
 
   const removeBlock = (index: number) => {
@@ -119,25 +147,109 @@ export function TemplateEditor({
     setActiveBlockIndex(null);
   };
 
-  const addBlock = (type: (typeof BLOCK_TYPES)[number]) => {
-    const newIndex = definition.blocks.length;
-    setDefinition({
-      ...definition,
-      blocks: [
-        ...definition.blocks,
-        defaultBlock(type, {
-          logo: identity?.slots.logo?.id,
-          banner: identity?.slots.banner?.id,
-        }),
-      ],
-    });
-    setActiveBlockIndex(newIndex);
+  const addBlock = (type: (typeof BLOCK_TYPES)[number], column?: TemplateColumn) => {
+    const next: Block = {
+      ...defaultBlock(type, {
+        logo: identity?.slots.logo?.id,
+        banner: identity?.slots.banner?.id,
+        legalDisclaimer: identity?.legalDisclaimer,
+      }),
+      ...(column ? { column } : definition.layout === "two-column" ? { column: defaultBlockColumn(type) } : {}),
+    };
+    const blocks = [...definition.blocks];
+    if (!column) {
+      blocks.push(next);
+      setDefinition({ ...definition, blocks });
+      setActiveBlockIndex(blocks.length - 1);
+      return;
+    }
+    const lastInColumn = [...blocks.keys()]
+      .filter((i) => blockColumn(blocks[i]!, definition.layout) === column)
+      .pop();
+    const insertAt = lastInColumn === undefined ? (column === 1 ? 0 : blocks.length) : lastInColumn + 1;
+    blocks.splice(insertAt, 0, next);
+    setDefinition({ ...definition, blocks });
+    setActiveBlockIndex(insertAt);
   };
 
   const updateBlock = (index: number, block: Block) => {
     const blocks = [...definition.blocks];
-    blocks[index] = block;
+    const previous = blocks[index];
+    blocks[index] = previous?.column ? { ...block, column: previous.column } : block;
     setDefinition({ ...definition, blocks });
+  };
+
+  const renderBlockList = (column?: TemplateColumn) => {
+    const items = definition.blocks
+      .map((block, index) => ({ block, index }))
+      .filter(({ block }) =>
+        column ? blockColumn(block, definition.layout) === column : true,
+      );
+
+    return (
+      <div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <Label>{column ? t(column === 1 ? "column1" : "column2") : t("blocks")}</Label>
+          <Select
+            defaultValue=""
+            onChange={(e) => {
+              if (e.target.value) addBlock(e.target.value as (typeof BLOCK_TYPES)[number], column);
+              e.target.value = "";
+            }}
+          >
+            <option value="">{t("addBlock")}</option>
+            {BLOCK_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {tb(type)}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="space-y-2">
+          {items.map(({ block, index }) => (
+            <Card
+              key={`${block.type}-${index}`}
+              className={`p-3 ${activeBlockIndex === index ? "border-ink" : ""}`}
+            >
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  className="text-left font-medium text-ink"
+                  onClick={() => setActiveBlockIndex(activeBlockIndex === index ? null : index)}
+                >
+                  {tb(block.type)}
+                </button>
+                <div className="flex gap-1">
+                  {definition.layout === "two-column" ? (
+                    <Button
+                      variant="ghost"
+                      title={t("moveToOtherColumn")}
+                      onClick={() =>
+                        moveBlockToColumn(index, blockColumn(block, "two-column") === 1 ? 2 : 1)
+                      }
+                    >
+                      {blockColumn(block, "two-column") === 1 ? "→" : "←"}
+                    </Button>
+                  ) : null}
+                  <Button variant="ghost" onClick={() => moveBlock(index, -1)}>
+                    ↑
+                  </Button>
+                  <Button variant="ghost" onClick={() => moveBlock(index, 1)}>
+                    ↓
+                  </Button>
+                  <Button variant="ghost" onClick={() => removeBlock(index)}>
+                    ×
+                  </Button>
+                </div>
+              </div>
+              {activeBlockIndex === index && (
+                <BlockConfig block={block} index={index} onChange={updateBlock} />
+              )}
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -152,69 +264,18 @@ export function TemplateEditor({
             <Label>{t("layout")}</Label>
             <Select
               value={definition.layout}
-              onChange={(e) =>
-                setDefinition({
-                  ...definition,
-                  layout: e.target.value as "single-column" | "two-column",
-                })
-              }
+              onChange={(e) => setLayout(e.target.value as Layout)}
             >
               <option value="single-column">{t("singleColumn")}</option>
               <option value="two-column">{t("twoColumn")}</option>
             </Select>
           </div>
 
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <Label>{t("blocks")}</Label>
-              <Select
-                defaultValue=""
-                onChange={(e) => {
-                  if (e.target.value) addBlock(e.target.value as (typeof BLOCK_TYPES)[number]);
-                  e.target.value = "";
-                }}
-              >
-                <option value="">{t("addBlock")}</option>
-                {BLOCK_TYPES.map((type) => (
-                  <option key={type} value={type}>
-                    {tb(type)}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="space-y-2">
-              {definition.blocks.map((block, index) => (
-                <Card
-                  key={index}
-                  className={`p-3 ${activeBlockIndex === index ? "border-ink" : ""}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <button
-                      type="button"
-                      className="text-left font-medium text-ink"
-                      onClick={() => setActiveBlockIndex(activeBlockIndex === index ? null : index)}
-                    >
-                      {tb(block.type)}
-                    </button>
-                    <div className="flex gap-1">
-                      <Button variant="ghost" onClick={() => moveBlock(index, -1)}>
-                        ↑
-                      </Button>
-                      <Button variant="ghost" onClick={() => moveBlock(index, 1)}>
-                        ↓
-                      </Button>
-                      <Button variant="ghost" onClick={() => removeBlock(index)}>
-                        ×
-                      </Button>
-                    </div>
-                  </div>
-                  {activeBlockIndex === index && (
-                    <BlockConfig block={block} index={index} onChange={updateBlock} />
-                  )}
-                </Card>
-              ))}
-            </div>
-          </div>
+          {definition.layout === "two-column" ? (
+            <div className="grid gap-4 sm:grid-cols-2">{renderBlockList(1)}{renderBlockList(2)}</div>
+          ) : (
+            renderBlockList()
+          )}
 
           <Button onClick={() => onSave({ name, definition })} disabled={saving}>
             {saving ? "..." : tc("save")}
@@ -238,9 +299,15 @@ export function TemplateEditor({
               {tc("preview")}
             </Button>
             {preview?.html && (
-              <Button variant="secondary" className="mt-2 ml-2" onClick={copyHtml}>
-                {copied ? tc("copied") : t("copyForGmail")}
-              </Button>
+              <>
+                <Button variant="secondary" className="mt-2 ml-2" onClick={() => void copyHtml("rich")}>
+                  {copied === "rich" ? tc("copied") : t("copyForGmail")}
+                </Button>
+                <Button variant="secondary" className="mt-2 ml-2" onClick={() => void copyHtml("source")}>
+                  {copied === "source" ? tc("copied") : t("copyHtmlSource")}
+                </Button>
+                <p className="mt-2 text-xs text-lead">{t("copyForGmailHint")}</p>
+              </>
             )}
           </div>
 
@@ -251,19 +318,12 @@ export function TemplateEditor({
 
           {preview && (
             <Card>
-              <div className="mb-2 flex items-center justify-between">
-                <span className="font-medium">{t("lintPanel")}</span>
-                <Badge variant={preview.lint.passed ? "success" : "warning"}>
-                  {preview.lint.score}/100
-                </Badge>
-              </div>
-              <ul className="space-y-1 text-sm">
-                {preview.lint.issues.slice(0, 5).map((issue) => (
-                  <li key={issue.id} className="text-lead">
-                    {issue.message}
-                  </li>
-                ))}
-              </ul>
+              <LintScoreBar
+                score={preview.lint.score}
+                passed={preview.lint.passed}
+                breakdown={preview.lint.breakdown}
+                issues={preview.lint.issues}
+              />
             </Card>
           )}
         </div>

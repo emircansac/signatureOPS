@@ -76,7 +76,7 @@ export type ImportPreview = {
   errors: ImportRowError[];
 };
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ASCII_EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
 const FIELD_ALIASES: Record<DirectoryField, string[]> = {
   firstName: ["first name", "firstname", "given name", "givenname", "isim", "ad"],
@@ -223,7 +223,8 @@ export function normalizeEmail(email: string): string {
 export function isValidEmail(email: string): boolean {
   const trimmed = email.trim();
   if (!trimmed) return false;
-  return EMAIL_RE.test(trimmed) && !trimmed.includes(" ");
+  if (trimmed.includes(" ") || trimmed.toLowerCase().includes("xn--")) return false;
+  return ASCII_EMAIL_RE.test(trimmed);
 }
 
 function issue(code: ImportErrorCode, field: ImportIssueField, value: string): ImportIssue {
@@ -240,7 +241,8 @@ const IMPORT_ERROR_EXPLAIN = {
     missingEmail: "E-posta kolonu boş.",
     missingCountryForMobile:
       "Mobil dolu (“{value}”) ama Ülke boş. Ülke kolonuna TR, US veya DE yazın.",
-    invalidEmail: "E-posta geçersiz: “{value}”. Örnek: ayse@ornek.com",
+    invalidEmail:
+      "E-posta geçersiz: “{value}”. Yalnızca İngilizce karakter kullanın (ör. ayse@ornek.com).",
     invalidMobile:
       "Mobil geçersiz: “{value}”. Ülke kodu yazmadan 5531822664 gibi ulusal numara girin.",
     unknownCountry: "Ülke tanınmadı: “{value}”. TR, US, DE gibi kod kullanın.",
@@ -255,7 +257,8 @@ const IMPORT_ERROR_EXPLAIN = {
     missingEmail: "Email is empty.",
     missingCountryForMobile:
       "Mobile is filled (“{value}”) but Country is empty. Use TR, US, or DE in the country column.",
-    invalidEmail: "Email is invalid: “{value}”. Example: ayse@ornek.com",
+    invalidEmail:
+      "Email is invalid: “{value}”. Use English letters only (e.g. ayse@ornek.com).",
     invalidMobile:
       "Mobile is invalid: “{value}”. Enter the national number without a country code, e.g. 5531822664.",
     unknownCountry: "Unknown country: “{value}”. Use a code such as TR, US, or DE.",

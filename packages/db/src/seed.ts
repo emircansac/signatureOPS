@@ -15,11 +15,11 @@ const defaultTemplate = {
 const salesTemplate = {
   layout: "two-column",
   blocks: [
-    { type: "company_logo", assetId: "asset-logo" },
-    { type: "identity", fields: ["displayName", "jobTitle", "department"] },
-    { type: "contact_details", fields: ["email", "mobile"] },
-    { type: "cta_button", label: "Demo Talep Et", url: "https://acme.com/demo" },
-    { type: "legal_disclaimer", text: "Satış iletişimi — {{organization.name}}" },
+    { type: "company_logo", assetId: "asset-logo", column: 1 },
+    { type: "identity", fields: ["displayName", "jobTitle", "department"], column: 2 },
+    { type: "contact_details", fields: ["email", "mobile"], column: 2 },
+    { type: "cta_button", label: "Demo Talep Et", url: "https://acme.com/demo", column: 2 },
+    { type: "legal_disclaimer", text: "Satış iletişimi — {{organization.name}}", column: 2 },
   ],
 };
 
@@ -57,6 +57,8 @@ async function main() {
     data: {
       name: "Acme Corp",
       slug: "acme",
+      intro: "Kurumsal yazılım ve e-posta imza yönetimi.",
+      legalDisclaimer: "Bu e-posta gizlidir. {{organization.name}}",
       brandColors: JSON.stringify([
         { id: "color-1c2b3a", hex: "#1C2B3A", label: "Mürekkep" },
         { id: "color-a63d2f", hex: "#A63D2F", label: "Vurgu" },

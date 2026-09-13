@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 import { trpc } from "@/lib/trpc";
-import { resolvePublicAssetUrl } from "@/lib/asset-url";
+import { brandMediaPath } from "@/lib/media-url";
 import { useOrgSlug, orgPath } from "@/lib/org-path";
 import { cn } from "@/lib/utils";
 
@@ -96,7 +96,7 @@ export function AssetPicker({
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {filtered.map((asset) => {
           const active = selected.has(asset.id);
-          const src = resolvePublicAssetUrl(asset.url);
+          const src = brandMediaPath(asset.id);
           return (
             <button
               key={asset.id}

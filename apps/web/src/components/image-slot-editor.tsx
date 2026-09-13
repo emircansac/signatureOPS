@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { displayBoxForSlot } from "@signatureops/compiler/display-fit";
 import { trpc } from "@/lib/trpc";
-import { resolvePublicAssetUrl } from "@/lib/asset-url";
+import { brandMediaPath } from "@/lib/media-url";
 import { readImageSize, uploadImageFile } from "@/lib/upload-image";
 import type { IdentitySlot } from "@/lib/identity";
 import { Button, Input, Label } from "@/components/ui";
@@ -201,7 +201,7 @@ export function ImageSlotEditor({
     ...(asset?.usedIn?.campaigns.map((item) => item.name) ?? []),
   ];
   const inUse = usageNames.length > 0;
-  const currentSrc = asset ? resolvePublicAssetUrl(asset.url) : "";
+  const currentSrc = asset ? brandMediaPath(asset.id) : "";
   const sizeHint = ta("displaySizeHint", { width: box.width, height: box.height });
 
   return (

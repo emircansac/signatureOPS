@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { trpc } from "@/lib/trpc";
+import { copySignatureHtml } from "@/lib/copy-signature";
 import { Badge, Button, Card, Label, PageHeading, Select } from "@/components/ui";
 
 export default function SimulatorPage() {
@@ -43,7 +44,7 @@ export default function SimulatorPage() {
 
   const copyHtml = async () => {
     if (!result?.renderedHtml) return;
-    await navigator.clipboard.writeText(result.renderedHtml);
+    await copySignatureHtml(result.renderedHtml);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

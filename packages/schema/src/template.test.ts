@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  blockColumn,
+  defaultBlockColumn,
   parseTemplateDefinition,
   safeParseTemplateDefinition,
   TemplateDefinitionSchema,
@@ -69,6 +71,18 @@ describe("TemplateDefinition", () => {
     expect(result.success).toBe(false);
   });
 
+  it("keeps an explicit two-column assignment", () => {
+    const parsed = parseTemplateDefinition({
+      layout: "two-column",
+      blocks: [
+        { type: "company_logo", assetId: "logo-1", column: 1 },
+        { type: "identity", fields: ["displayName"], column: 2 },
+      ],
+    });
+    expect(parsed.blocks[0]).toMatchObject({ type: "company_logo", column: 1 });
+    expect(parsed.blocks[1]).toMatchObject({ type: "identity", column: 2 });
+  });
+
   it("normalizes legacy logo and certifications blocks", () => {
     const parsed = parseTemplateDefinition({
       layout: "single-column",
@@ -85,6 +99,17 @@ describe("TemplateDefinition", () => {
     expect(certs?.type === "certifications" && certs.assetIds).toEqual([]);
     expect(certs?.type === "certifications" && certs.migrationWarning).toMatch(/yeniden seçin/);
     expect(banner?.type === "campaign_banner" && banner.assetId).toBe("banner-1");
+  });
+});
+
+describe("blockColumn", () => {
+  it("puts logos on the left and text on the right when column is missing", () => {
+    expect(defaultBlockColumn("company_logo")).toBe(1);
+    expect(defaultBlockColumn("identity")).toBe(2);
+    expect(
+      blockColumn({ type: "identity", fields: ["displayName"] }, "two-column"),
+    ).toBe(2);
+    expect(blockColumn({ type: "identity", fields: ["displayName"] }, "single-column")).toBe(1);
   });
 });
 
@@ -117,6 +142,14 @@ describe("placeholders", () => {
   it("resolves known placeholders", () => {
     expect(defaultPlaceholderResolver("user.displayName", sampleUser)).toBe("Ayşe Yılmaz");
     expect(defaultPlaceholderResolver("organization.name", sampleUser)).toBe("Acme Corp");
+    expect(defaultPlaceholderResolver("organization.intro", {
+      ...sampleUser,
+      organization: { ...sampleUser.organization, intro: "Kurumsal yazılım." },
+    })).toBe("Kurumsal yazılım.");
+    expect(defaultPlaceholderResolver("organization.legalDisclaimer", {
+      ...sampleUser,
+      organization: { ...sampleUser.organization, legalDisclaimer: "Gizlidir." },
+    })).toBe("Gizlidir.");
   });
 
   it("formats phone numbers with the country calling code", () => {

@@ -141,6 +141,37 @@ describe("compile", () => {
     expect(outlook.html).toContain("<!-- outlook -->");
   });
 
+  it("uses the organization legal notice when the disclaimer block is empty", () => {
+    const definition = parseTemplateDefinition({
+      layout: "single-column",
+      blocks: [{ type: "legal_disclaimer", text: "{{organization.legalDisclaimer}}" }],
+    });
+    const html = compile(definition, {
+      ...baseContext,
+      user: {
+        ...baseContext.user,
+        organization: { name: "Acme Corp", legalDisclaimer: "Bu e-posta gizlidir." },
+      },
+    }).html;
+    expect(html).toContain("Bu e-posta gizlidir.");
+  });
+
+  it("places two-column blocks side by side and centers them", () => {
+    const definition = parseTemplateDefinition({
+      layout: "two-column",
+      blocks: [
+        { type: "company_logo", assetId: "logo-1", column: 1 },
+        { type: "identity", fields: ["displayName", "jobTitle"], column: 2 },
+        { type: "contact_details", fields: ["mobile"], column: 2 },
+      ],
+    });
+    const html = compile(definition, baseContext).html;
+    expect(html).toContain('vertical-align:middle;text-align:center');
+    expect(html.match(/vertical-align:middle;text-align:center/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(html.indexOf("logo.png")).toBeLessThan(html.indexOf("Ayşe Yılmaz"));
+    expect(html.indexOf("Ayşe Yılmaz")).toBeLessThan(html.indexOf("+90 555 123 4567"));
+  });
+
   it("respects hidden blocks", () => {
     const result = compile(fixtures.full!, baseContext, { hiddenBlocks: ["campaign_banner"] });
     expect(result.html).not.toContain("Campaign banner");

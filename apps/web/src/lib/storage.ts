@@ -69,6 +69,7 @@ export async function storeUpload(
       R2_SECRET_ACCESS_KEY: env.R2_SECRET_ACCESS_KEY!,
     });
     const key = `${orgId}/${filename}`;
+    const encodedKey = key.split("/").map(encodeURIComponent).join("/");
     try {
       await client.send(
         new PutObjectCommand({
@@ -89,7 +90,7 @@ export async function storeUpload(
       throw error;
     }
     const base = env.R2_PUBLIC_BASE_URL!.replace(/\/$/, "");
-    return { url: `${base}/${key}`, bytes: body.length, filename, width, height };
+    return { url: `${base}/${encodedKey}`, bytes: body.length, filename, width, height };
   }
 
   if (env.NODE_ENV === "production") {

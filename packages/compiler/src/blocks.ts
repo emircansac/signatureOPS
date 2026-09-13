@@ -8,6 +8,7 @@ import type {
   VisibilityContext,
 } from "@signatureops/schema";
 import {
+  blockColumn,
   evaluateVisibleWhen,
   formatPhone,
   normalizeSocialPlatform,
@@ -123,18 +124,38 @@ function resolveColorHex(colorAssetId: string | null | undefined, context: Compi
   return DEFAULT_TOKENS.link;
 }
 
+type BlockRenderOptions = {
+  centered?: boolean;
+  singleCell?: boolean;
+};
+
+function tdAlign(opts: BlockRenderOptions): string {
+  return opts.centered ? "vertical-align:middle;text-align:center;" : "vertical-align:top;";
+}
+
+function imgBoxStyle(opts: BlockRenderOptions, extra = ""): string {
+  const center = opts.centered ? "margin:0 auto;" : "";
+  return `display:block;border:0;outline:none;${center}${extra}`;
+}
+
+function rowCellOpen(opts: BlockRenderOptions, extraStyle = ""): string {
+  const span = opts.singleCell ? "" : ' colspan="2"';
+  return `<td${span} style="${extraStyle}">`;
+}
+
 function renderImg(
   asset: AssetContext,
   fallbackAlt: string,
   width: number,
   height: number,
   extraStyle = "",
+  opts: BlockRenderOptions = {},
 ): string {
   const alt = escapeHtml(asset.alt ?? fallbackAlt);
-  return `<img src="${escapeHtml(asset.url)}" alt="${alt}" width="${width}" height="${height}" style="display:block;border:0;outline:none;${extraStyle}" />`;
+  return `<img src="${escapeHtml(asset.url)}" alt="${alt}" width="${width}" height="${height}" style="${imgBoxStyle(opts, extraStyle)}" />`;
 }
 
-function renderIdentity(fields: string[], context: CompileContext): string {
+function renderIdentity(fields: string[], context: CompileContext, opts: BlockRenderOptions = {}): string {
   const lines = fields
     .map((field) => {
       const path = FIELD_MAP[field] ?? `user.${field}`;
@@ -149,10 +170,11 @@ function renderIdentity(fields: string[], context: CompileContext): string {
     .filter(Boolean)
     .join("");
 
-  return `<td style="vertical-align:top;padding:0 12px 0 0;">${lines}</td>`;
+  const padding = opts.centered ? "0" : "0 12px 0 0";
+  return `<td style="${tdAlign(opts)}padding:${padding};">${lines}</td>`;
 }
 
-function renderContact(fields: string[], context: CompileContext): string {
+function renderContact(fields: string[], context: CompileContext, opts: BlockRenderOptions = {}): string {
   const link = context.identity ? tokens(context).link : DEFAULT_TOKENS.link;
   const lines = fields
     .map((field) => {
@@ -175,21 +197,27 @@ function renderContact(fields: string[], context: CompileContext): string {
     .filter(Boolean)
     .join("");
 
-  return `<td style="vertical-align:top;padding:0;">${lines}</td>`;
+  return `<td style="${tdAlign(opts)}padding:0;">${lines}</td>`;
 }
 
-function renderLogo(block: Extract<Block, { type: "company_logo" }>, context: CompileContext): string {
+function renderLogo(
+  block: Extract<Block, { type: "company_logo" }>,
+  context: CompileContext,
+  opts: BlockRenderOptions = {},
+): string {
   const asset = resolveLogoAsset(block, context);
   if (!asset) return "";
   const slot = block.logoVariant === "mark" ? "logo_mark" : "logo";
   const { width, height } = fittedDisplaySize(slot, asset.width, asset.height);
-  return `<td style="vertical-align:top;padding:0 12px 8px 0;">${renderImg(asset, "Company logo", width, height)}</td>`;
+  const padding = opts.centered ? "0 0 8px 0" : "0 12px 8px 0";
+  return `<td style="${tdAlign(opts)}padding:${padding};">${renderImg(asset, "Company logo", width, height, "", opts)}</td>`;
 }
 
-function renderProfilePhoto(context: CompileContext): string {
+function renderProfilePhoto(context: CompileContext, opts: BlockRenderOptions = {}): string {
   const url = context.user.user.photoUrl ?? "";
   if (!url || !isAllowedImageUrl(url)) return "";
-  return `<td style="vertical-align:top;padding:0 12px 0 0;"><img src="${escapeHtml(url)}" alt="${escapeHtml(context.user.user.displayName)}" width="64" height="64" style="display:block;border-radius:32px;border:0;outline:none;" /></td>`;
+  const padding = opts.centered ? "0 0 8px 0" : "0 12px 0 0";
+  return `<td style="${tdAlign(opts)}padding:${padding};"><img src="${escapeHtml(url)}" alt="${escapeHtml(context.user.user.displayName)}" width="64" height="64" style="${imgBoxStyle(opts, "border-radius:32px;")}" /></td>`;
 }
 
 function socialEntries(block: Extract<Block, { type: "social_links" }>) {
@@ -214,6 +242,7 @@ function socialEntries(block: Extract<Block, { type: "social_links" }>) {
 function renderSocialLinks(
   block: Extract<Block, { type: "social_links" }>,
   context: CompileContext,
+  opts: BlockRenderOptions = {},
 ): string {
   const entries = socialEntries(block);
   if (entries.length === 0) return "";
@@ -229,7 +258,7 @@ function renderSocialLinks(
           icon.width,
           icon.height,
         );
-        return `<a href="${escapeHtml(entry.url)}" style="text-decoration:none;margin-right:8px;">${renderImg(icon, entry.label, w, h, "display:inline-block;")}</a>`;
+        return `<a href="${escapeHtml(entry.url)}" style="text-decoration:none;margin-right:8px;">${renderImg(icon, entry.label, w, h, "display:inline-block;", opts)}</a>`;
       }
       if (custom) {
         const color = STANDARD_SOCIAL_COLORS[entry.platform];
@@ -239,10 +268,14 @@ function renderSocialLinks(
       return `<a href="${escapeHtml(entry.url)}" style="font-family:Arial,sans-serif;font-size:11px;color:${link};text-decoration:none;margin-right:8px;">${escapeHtml(entry.label)}</a>`;
     })
     .join("");
-  return `<tr><td colspan="2" style="padding:4px 0;">${items}</td></tr>`;
+  return `<tr>${rowCellOpen(opts, "padding:4px 0;")}${items}</td></tr>`;
 }
 
-function renderCta(block: Extract<Block, { type: "cta_button" }>, context: CompileContext): string {
+function renderCta(
+  block: Extract<Block, { type: "cta_button" }>,
+  context: CompileContext,
+  opts: BlockRenderOptions = {},
+): string {
   const override = activeCampaign(context)?.ctaOverride;
   const label = override?.text?.trim() || block.label;
   const url = override?.link?.trim() || block.url;
@@ -252,14 +285,15 @@ function renderCta(block: Extract<Block, { type: "cta_button" }>, context: Compi
   const iconSize = icon ? fittedDisplaySize("cta_icon", icon.width, icon.height) : null;
   const iconHtml =
     icon && iconSize
-      ? `${renderImg(icon, label, iconSize.width, iconSize.height, "display:inline-block;vertical-align:middle;margin-right:6px;")} `
+      ? `${renderImg(icon, label, iconSize.width, iconSize.height, "display:inline-block;vertical-align:middle;margin-right:6px;", opts)} `
       : "";
-  return `<tr><td colspan="2" style="padding:8px 0;"><a href="${escapeHtml(url)}" style="font-family:Arial,sans-serif;font-size:12px;color:#ffffff;background-color:${fill};text-decoration:none;padding:6px 12px;display:inline-block;border-radius:4px;">${iconHtml}${escapeHtml(label)}</a></td></tr>`;
+  return `<tr>${rowCellOpen(opts, "padding:8px 0;")}<a href="${escapeHtml(url)}" style="font-family:Arial,sans-serif;font-size:12px;color:#ffffff;background-color:${fill};text-decoration:none;padding:6px 12px;display:inline-block;border-radius:4px;">${iconHtml}${escapeHtml(label)}</a></td></tr>`;
 }
 
 function renderCampaign(
   block: Extract<Block, { type: "campaign_banner" }>,
   context: CompileContext,
+  opts: BlockRenderOptions = {},
 ): string {
   const applied = activeCampaign(context);
   const fromBlock = block.campaignId ? context.campaigns[block.campaignId] : undefined;
@@ -269,31 +303,37 @@ function renderCampaign(
     const slogan = campaign.slogan?.trim()
       ? `<p style="font-family:Arial,sans-serif;font-size:11px;color:#555555;margin:6px 0 0 0;padding:0;">${escapeHtml(campaign.slogan.trim())}</p>`
       : "";
-    return `<tr><td colspan="2" style="padding:8px 0;"><img src="${escapeHtml(campaign.bannerUrl)}" alt="Campaign banner" width="${w}" height="${h}" style="display:block;border:0;outline:none;max-width:100%;" />${slogan}</td></tr>`;
+    return `<tr>${rowCellOpen(opts, "padding:8px 0;")}<img src="${escapeHtml(campaign.bannerUrl)}" alt="Campaign banner" width="${w}" height="${h}" style="${imgBoxStyle(opts, "max-width:100%;")}" />${slogan}</td></tr>`;
   }
   const asset = resolveAsset(block.assetId, context);
   if (!asset) return "";
   const { width: w, height: h } = fittedDisplaySize("banner", asset.width, asset.height);
-  return `<tr><td colspan="2" style="padding:8px 0;">${renderImg(asset, asset.alt ?? "Banner", w, h, "max-width:100%;")}</td></tr>`;
+  return `<tr>${rowCellOpen(opts, "padding:8px 0;")}${renderImg(asset, asset.alt ?? "Banner", w, h, "max-width:100%;", opts)}</td></tr>`;
 }
 
 function renderDisclaimer(
   block: Extract<Block, { type: "legal_disclaimer" }>,
   context: CompileContext,
+  opts: BlockRenderOptions = {},
 ): string {
-  const resolved = resolvePlaceholders(block.text, context.user);
+  const resolved =
+    resolvePlaceholders(block.text, context.user).trim() ||
+    context.user.organization.legalDisclaimer?.trim() ||
+    "";
+  if (!resolved) return "";
   const text = `<p style="font-family:Arial,sans-serif;font-size:10px;color:#888888;margin:0;padding:0;line-height:1.4;">${escapeHtml(resolved)}</p>`;
   const badge = resolveAsset(block.assetId, context);
   const badgeSize = badge ? fittedDisplaySize("legal_badge", badge.width, badge.height) : null;
   if (!badge || !badgeSize) {
-    return `<tr><td colspan="2" style="padding:8px 0 0 0;">${text}</td></tr>`;
+    return `<tr>${rowCellOpen(opts, "padding:8px 0 0 0;")}${text}</td></tr>`;
   }
-  return `<tr><td colspan="2" style="padding:8px 0 0 0;"><table cellpadding="0" cellspacing="0" border="0"><tr><td style="vertical-align:top;padding:0 8px 0 0;">${renderImg(badge, "Legal badge", badgeSize.width, badgeSize.height)}</td><td style="vertical-align:top;">${text}</td></tr></table></td></tr>`;
+  return `<tr>${rowCellOpen(opts, "padding:8px 0 0 0;")}<table cellpadding="0" cellspacing="0" border="0" align="center"><tr><td style="${tdAlign(opts)}padding:0 8px 0 0;">${renderImg(badge, "Legal badge", badgeSize.width, badgeSize.height, "", opts)}</td><td style="${tdAlign(opts)}">${text}</td></tr></table></td></tr>`;
 }
 
 function renderCertifications(
   block: Extract<Block, { type: "certifications" }>,
   context: CompileContext,
+  opts: BlockRenderOptions = {},
 ): string {
   const images = block.assetIds
     .map((id) => resolveAsset(id, context))
@@ -303,74 +343,108 @@ function renderCertifications(
       .map(
         (asset) => {
           const { width, height } = fittedDisplaySize("certification", asset.width, asset.height);
-          return `<td style="padding:0 6px 0 0;vertical-align:middle;">${renderImg(asset, asset.alt ?? "Certification", width, height)}</td>`;
+          return `<td style="padding:0 6px 0 0;vertical-align:middle;">${renderImg(asset, asset.alt ?? "Certification", width, height, "", opts)}</td>`;
         },
       )
       .join("");
-    return `<tr><td colspan="2" style="padding:4px 0;"><table cellpadding="0" cellspacing="0" border="0"><tr>${imgs}</tr></table></td></tr>`;
+    return `<tr>${rowCellOpen(opts, "padding:4px 0;")}<table cellpadding="0" cellspacing="0" border="0" align="center"><tr>${imgs}</tr></table></td></tr>`;
   }
   const items = block.items?.filter(Boolean) ?? [];
   if (items.length === 0) return "";
   const text = items.map((item) => escapeHtml(item)).join(" · ");
-  return `<tr><td colspan="2" style="padding:4px 0;"><p style="font-family:Arial,sans-serif;font-size:10px;color:#666666;margin:0;padding:0;">${text}</p></td></tr>`;
+  return `<tr>${rowCellOpen(opts, "padding:4px 0;")}<p style="font-family:Arial,sans-serif;font-size:10px;color:#666666;margin:0;padding:0;">${text}</p></td></tr>`;
 }
 
-function renderCustomText(text: string, context: CompileContext): string {
+function renderCustomText(text: string, context: CompileContext, opts: BlockRenderOptions = {}): string {
   const resolved = resolvePlaceholders(text, context.user);
-  return `<tr><td colspan="2" style="padding:4px 0;"><p style="font-family:Arial,sans-serif;font-size:12px;color:#333333;margin:0;padding:0;">${escapeHtml(resolved)}</p></td></tr>`;
+  return `<tr>${rowCellOpen(opts, "padding:4px 0;")}<p style="font-family:Arial,sans-serif;font-size:12px;color:#333333;margin:0;padding:0;">${escapeHtml(resolved)}</p></td></tr>`;
 }
 
-function renderSpacer(): string {
-  return `<tr><td colspan="2" style="padding:0;height:8px;font-size:0;line-height:0;">&nbsp;</td></tr>`;
+function renderSpacer(opts: BlockRenderOptions = {}): string {
+  return `<tr>${rowCellOpen(opts, "padding:0;height:8px;font-size:0;line-height:0;")}&nbsp;</td></tr>`;
 }
 
-function renderDivider(): string {
-  return `<tr><td colspan="2" style="padding:4px 0;"><table cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td style="border-top:1px solid #dddddd;font-size:0;line-height:0;">&nbsp;</td></tr></table></td></tr>`;
+function renderDivider(opts: BlockRenderOptions = {}): string {
+  return `<tr>${rowCellOpen(opts, "padding:4px 0;")}<table cellpadding="0" cellspacing="0" border="0" width="100%"><tr><td style="border-top:1px solid #dddddd;font-size:0;line-height:0;">&nbsp;</td></tr></table></td></tr>`;
 }
 
 export function renderBlock(
   block: Block,
   context: CompileContext,
   visibility: VisibilityContext,
+  opts: BlockRenderOptions = {},
 ): string {
   if (!isBlockVisible(block, visibility)) return "";
 
   switch (block.type) {
     case "identity": {
-      const html = renderIdentity(block.fields, context);
+      const html = renderIdentity(block.fields, context, opts);
       return html.includes("<p") ? `<tr>${html}</tr>` : "";
     }
     case "contact_details": {
-      const html = renderContact(block.fields, context);
+      const html = renderContact(block.fields, context, opts);
       return html.includes("<p") ? `<tr>${html}</tr>` : "";
     }
     case "company_logo": {
-      const html = renderLogo(block, context);
+      const html = renderLogo(block, context, opts);
       return html ? `<tr>${html}</tr>` : "";
     }
     case "profile_photo": {
-      const html = renderProfilePhoto(context);
+      const html = renderProfilePhoto(context, opts);
       return html ? `<tr>${html}</tr>` : "";
     }
     case "social_links":
-      return renderSocialLinks(block, context);
+      return renderSocialLinks(block, context, opts);
     case "cta_button":
-      return renderCta(block, context);
+      return renderCta(block, context, opts);
     case "campaign_banner":
-      return renderCampaign(block, context);
+      return renderCampaign(block, context, opts);
     case "legal_disclaimer":
-      return renderDisclaimer(block, context);
+      return renderDisclaimer(block, context, opts);
     case "certifications":
-      return renderCertifications(block, context);
+      return renderCertifications(block, context, opts);
     case "custom_text":
-      return renderCustomText(block.text, context);
+      return renderCustomText(block.text, context, opts);
     case "spacer":
-      return renderSpacer();
+      return renderSpacer(opts);
     case "divider":
-      return renderDivider();
+      return renderDivider(opts);
     default:
       return "";
   }
+}
+
+function compileColumnStack(
+  blocks: Block[],
+  context: CompileContext,
+  visibility: VisibilityContext,
+): string {
+  const rows = blocks
+    .map((block) => renderBlock(block, context, visibility, { centered: true, singleCell: true }))
+    .filter(Boolean)
+    .join("");
+  if (!rows) return "";
+  return `<table cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;"><tbody>${rows}</tbody></table>`;
+}
+
+function compileTwoColumn(
+  definition: TemplateDefinition,
+  context: CompileContext,
+  visibility: VisibilityContext,
+): string {
+  const left = definition.blocks.filter((block) => blockColumn(block, "two-column") === 1);
+  const right = definition.blocks.filter((block) => blockColumn(block, "two-column") === 2);
+  const leftHtml = compileColumnStack(left, context, visibility);
+  const rightHtml = compileColumnStack(right, context, visibility);
+  const cell = (html: string, padding: string) =>
+    `<td style="vertical-align:middle;text-align:center;padding:${padding};">${html}</td>`;
+
+  const inner =
+    leftHtml && rightHtml
+      ? `<tr>${cell(leftHtml, "0 16px 0 0")}${cell(rightHtml, "0")}</tr>`
+      : `<tr>${cell(leftHtml || rightHtml, "0")}</tr>`;
+
+  return `<table cellpadding="0" cellspacing="0" border="0" style="max-width:500px;font-family:Arial,sans-serif;"><tbody>${inner}</tbody></table>`;
 }
 
 export function compileBlocks(
@@ -378,15 +452,14 @@ export function compileBlocks(
   context: CompileContext,
   visibility: VisibilityContext,
 ): string {
+  if (definition.layout === "two-column") {
+    return compileTwoColumn(definition, context, visibility);
+  }
+
   const rows = definition.blocks
     .map((block) => renderBlock(block, context, visibility))
     .filter(Boolean)
     .join("");
 
-  const layoutStyle =
-    definition.layout === "two-column"
-      ? "max-width:500px;"
-      : "max-width:400px;";
-
-  return `<table cellpadding="0" cellspacing="0" border="0" style="${layoutStyle}font-family:Arial,sans-serif;"><tbody>${rows}</tbody></table>`;
+  return `<table cellpadding="0" cellspacing="0" border="0" style="max-width:400px;font-family:Arial,sans-serif;"><tbody>${rows}</tbody></table>`;
 }

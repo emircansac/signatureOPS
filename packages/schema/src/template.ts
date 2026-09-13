@@ -3,6 +3,10 @@ import { z } from "zod";
 export const LayoutSchema = z.enum(["single-column", "two-column"]);
 export type Layout = z.infer<typeof LayoutSchema>;
 
+export const TemplateColumnSchema = z.union([z.literal(1), z.literal(2)]);
+export type TemplateColumn = z.infer<typeof TemplateColumnSchema>;
+const ColumnFieldSchema = TemplateColumnSchema.optional();
+
 export const LogoVariantSchema = z.enum(["default", "light", "dark", "mark"]);
 export type LogoVariant = z.infer<typeof LogoVariantSchema>;
 
@@ -25,6 +29,7 @@ export const IdentityBlockSchema = z.object({
   fields: z.array(z.string()).min(1),
   visibleWhen: VisibleWhenSchema,
   migrationWarning: MigrationWarningSchema,
+  column: ColumnFieldSchema,
 });
 
 export const ContactDetailsBlockSchema = z.object({
@@ -32,6 +37,7 @@ export const ContactDetailsBlockSchema = z.object({
   fields: z.array(z.string()).min(1),
   visibleWhen: VisibleWhenSchema,
   migrationWarning: MigrationWarningSchema,
+  column: ColumnFieldSchema,
 });
 
 export const CompanyLogoBlockSchema = z.object({
@@ -40,12 +46,14 @@ export const CompanyLogoBlockSchema = z.object({
   logoVariant: LogoVariantSchema.default("default"),
   visibleWhen: VisibleWhenSchema,
   migrationWarning: MigrationWarningSchema,
+  column: ColumnFieldSchema,
 });
 
 export const ProfilePhotoBlockSchema = z.object({
   type: z.literal("profile_photo"),
   visibleWhen: VisibleWhenSchema,
   migrationWarning: MigrationWarningSchema,
+  column: ColumnFieldSchema,
 });
 
 export const SocialLinkSchema = z.object({
@@ -59,6 +67,7 @@ export const SocialLinksBlockSchema = z.object({
   links: z.array(SocialLinkSchema).default([]),
   visibleWhen: VisibleWhenSchema,
   migrationWarning: MigrationWarningSchema,
+  column: ColumnFieldSchema,
 });
 
 export const CtaButtonBlockSchema = z.object({
@@ -69,6 +78,7 @@ export const CtaButtonBlockSchema = z.object({
   colorAssetId: z.string().nullable().optional(),
   visibleWhen: VisibleWhenSchema,
   migrationWarning: MigrationWarningSchema,
+  column: ColumnFieldSchema,
 });
 
 export const CampaignBannerBlockSchema = z.object({
@@ -77,6 +87,7 @@ export const CampaignBannerBlockSchema = z.object({
   assetId: OptionalAssetIdSchema,
   visibleWhen: VisibleWhenSchema,
   migrationWarning: MigrationWarningSchema,
+  column: ColumnFieldSchema,
 });
 
 export const LegalDisclaimerBlockSchema = z.object({
@@ -85,6 +96,7 @@ export const LegalDisclaimerBlockSchema = z.object({
   assetId: OptionalAssetIdSchema,
   visibleWhen: VisibleWhenSchema,
   migrationWarning: MigrationWarningSchema,
+  column: ColumnFieldSchema,
 });
 
 export const CertificationsBlockSchema = z.object({
@@ -93,6 +105,7 @@ export const CertificationsBlockSchema = z.object({
   items: z.array(z.string()).optional(),
   visibleWhen: VisibleWhenSchema,
   migrationWarning: MigrationWarningSchema,
+  column: ColumnFieldSchema,
 });
 
 export const CustomTextBlockSchema = z.object({
@@ -100,18 +113,21 @@ export const CustomTextBlockSchema = z.object({
   text: z.string().min(1),
   visibleWhen: VisibleWhenSchema,
   migrationWarning: MigrationWarningSchema,
+  column: ColumnFieldSchema,
 });
 
 export const SpacerBlockSchema = z.object({
   type: z.literal("spacer"),
   visibleWhen: VisibleWhenSchema,
   migrationWarning: MigrationWarningSchema,
+  column: ColumnFieldSchema,
 });
 
 export const DividerBlockSchema = z.object({
   type: z.literal("divider"),
   visibleWhen: VisibleWhenSchema,
   migrationWarning: MigrationWarningSchema,
+  column: ColumnFieldSchema,
 });
 
 export const BlockSchema = z.discriminatedUnion("type", [
@@ -267,4 +283,28 @@ export function collectTemplateAssetIds(definition: TemplateDefinition): string[
     if (block.type === "certifications") ids.push(...block.assetIds);
   }
   return [...new Set(ids)];
+}
+
+const LEFT_COLUMN_TYPES = new Set<Block["type"]>(["company_logo", "profile_photo"]);
+
+export function defaultBlockColumn(type: Block["type"]): TemplateColumn {
+  return LEFT_COLUMN_TYPES.has(type) ? 1 : 2;
+}
+
+export function blockColumn(block: Block, layout: Layout): TemplateColumn {
+  if (layout !== "two-column") return 1;
+  if (block.column === 1 || block.column === 2) return block.column;
+  return defaultBlockColumn(block.type);
+}
+
+export function assignMissingColumns(definition: TemplateDefinition): TemplateDefinition {
+  if (definition.layout !== "two-column") return definition;
+  return {
+    ...definition,
+    blocks: definition.blocks.map((block) =>
+      block.column === 1 || block.column === 2
+        ? block
+        : { ...block, column: defaultBlockColumn(block.type) },
+    ),
+  };
 }

@@ -202,11 +202,15 @@ export function PersonForm({
             </Label>
             <Input
               id="person-email"
-              type="email"
+              type="text"
+              inputMode="email"
+              autoComplete="email"
+              spellCheck={false}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
+            <p className="mt-1 text-xs text-lead">{t("emailHint")}</p>
           </div>
           <div>
             <Label htmlFor="person-country">{t("country")}</Label>

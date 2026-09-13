@@ -12,6 +12,8 @@ export type UserContext = {
   };
   organization: {
     name: string;
+    intro?: string;
+    legalDisclaimer?: string;
   };
   office?: {
     address?: string;

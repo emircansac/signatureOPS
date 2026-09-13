@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isPersonTitleComplete, onboardingState } from "./onboarding";
+import { isOrgIntroComplete, isPersonTitleComplete, onboardingState } from "./onboarding";
 
 const empty = {
   hasLogo: false,
+  hasIntro: false,
   hasPersonWithTitle: false,
   hasCampaign: false,
   hasTemplate: false,
@@ -18,6 +19,14 @@ describe("isPersonTitleComplete", () => {
   });
 });
 
+describe("isOrgIntroComplete", () => {
+  it("requires a short introduction", () => {
+    expect(isOrgIntroComplete(null)).toBe(false);
+    expect(isOrgIntroComplete("Kısa")).toBe(false);
+    expect(isOrgIntroComplete("Kurumsal yazılım ve imza yönetimi.")).toBe(true);
+  });
+});
+
 describe("onboardingState", () => {
   it("shows all four steps for a new org", () => {
     const state = onboardingState(empty);
@@ -28,7 +37,7 @@ describe("onboardingState", () => {
   });
 
   it("marks completed required steps and keeps incomplete cards", () => {
-    const state = onboardingState({ ...empty, hasLogo: true, hasPersonWithTitle: true });
+    const state = onboardingState({ ...empty, hasLogo: true, hasIntro: true, hasPersonWithTitle: true });
     expect(state.completedVisible).toEqual(["identity", "directory"]);
     expect(state.incompleteVisible).toEqual(["campaign", "template"]);
     expect(state.completedCount).toBe(2);
@@ -37,21 +46,29 @@ describe("onboardingState", () => {
   });
 
   it("hides the campaign step permanently after skip", () => {
-    const state = onboardingState({ ...empty, hasLogo: true, skipCampaign: true });
+    const state = onboardingState({ ...empty, hasLogo: true, hasIntro: true, skipCampaign: true });
     expect(state.incompleteVisible).toEqual(["directory", "template"]);
     expect(state.totalCount).toBe(3);
     expect(state.completedCount).toBe(1);
     expect(state.steps.find((step) => step.id === "campaign")?.visible).toBe(false);
   });
 
+  it("keeps identity incomplete until both logo and intro exist", () => {
+    const logoOnly = onboardingState({ ...empty, hasLogo: true });
+    expect(logoOnly.incompleteVisible).toContain("identity");
+    const both = onboardingState({ ...empty, hasLogo: true, hasIntro: true });
+    expect(both.completedVisible).toContain("identity");
+  });
+
   it("does not count a person without a job title", () => {
-    const state = onboardingState({ ...empty, hasLogo: true, hasPersonWithTitle: false });
+    const state = onboardingState({ ...empty, hasLogo: true, hasIntro: true, hasPersonWithTitle: false });
     expect(state.incompleteVisible).toContain("directory");
   });
 
   it("hides the checklist once every required step is done, even without a campaign", () => {
     const state = onboardingState({
       hasLogo: true,
+      hasIntro: true,
       hasPersonWithTitle: true,
       hasCampaign: false,
       hasTemplate: true,
@@ -63,6 +80,7 @@ describe("onboardingState", () => {
   it("hides the checklist when required steps are done after skipping campaign", () => {
     const state = onboardingState({
       hasLogo: true,
+      hasIntro: true,
       hasPersonWithTitle: true,
       hasCampaign: false,
       hasTemplate: true,
@@ -74,6 +92,7 @@ describe("onboardingState", () => {
   it("keeps the checklist if only the optional campaign is missing among four visible steps but a required step is also missing", () => {
     const state = onboardingState({
       hasLogo: true,
+      hasIntro: true,
       hasPersonWithTitle: true,
       hasCampaign: false,
       hasTemplate: false,

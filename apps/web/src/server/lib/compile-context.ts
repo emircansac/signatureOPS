@@ -43,7 +43,13 @@ export function buildCompileContext(input: {
   user: CompileContext["user"];
   assets: SlotAsset[];
   campaigns: CompileContext["campaigns"];
-  org: { name: string; brandColors?: string | null; socialIconMode?: string | null };
+  org: {
+    name: string;
+    intro?: string | null;
+    legalDisclaimer?: string | null;
+    brandColors?: string | null;
+    socialIconMode?: string | null;
+  };
   fallbackPhotoUrl?: string | null;
   baseUrl?: string;
   activeCampaignId?: string;
@@ -55,6 +61,11 @@ export function buildCompileContext(input: {
       user: {
         ...input.user.user,
         photoUrl: photoUrl ? resolvePublicAssetUrl(photoUrl, input.baseUrl) : undefined,
+      },
+      organization: {
+        name: input.org.name,
+        intro: input.org.intro?.trim() || undefined,
+        legalDisclaimer: input.org.legalDisclaimer?.trim() || undefined,
       },
     },
     assets: toCompileAssetMap(input.assets, input.baseUrl),

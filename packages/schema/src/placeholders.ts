@@ -13,6 +13,8 @@ const KNOWN_PATHS = new Set([
   "user.officePhone",
   "user.photoUrl",
   "organization.name",
+  "organization.intro",
+  "organization.legalDisclaimer",
   "office.address",
   "manager.displayName",
 ]);

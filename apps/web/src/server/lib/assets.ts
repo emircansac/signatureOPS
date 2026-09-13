@@ -1,4 +1,4 @@
-import { resolvePublicAssetUrl } from "@/lib/asset-url";
+import { brandMediaUrl } from "@/lib/media-url";
 
 export type AssetRecord = {
   id: string;
@@ -15,7 +15,7 @@ export function toCompileAssetMap(assets: AssetRecord[], baseUrl?: string) {
       a.id,
       {
         id: a.id,
-        url: resolvePublicAssetUrl(a.url, baseUrl),
+        url: brandMediaUrl(a.id, baseUrl),
         width: a.width ?? undefined,
         height: a.height ?? undefined,
         alt: a.alt ?? undefined,

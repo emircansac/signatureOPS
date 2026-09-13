@@ -131,7 +131,14 @@ describe("validateImportRows", () => {
 
   it("accepts a well-formed email", () => {
     expect(isValidEmail("ada@example.com")).toBe(true);
+    expect(isValidEmail("ada+test@example.com")).toBe(true);
     expect(isValidEmail("ada")).toBe(false);
     expect(isValidEmail("ada@x")).toBe(false);
+  });
+
+  it("rejects Turkish letters and punycode domains", () => {
+    expect(isValidEmail("ayşe@ornek.com")).toBe(false);
+    expect(isValidEmail("ada@şirket.com")).toBe(false);
+    expect(isValidEmail("emircan@xn--isizler-9pb.org")).toBe(false);
   });
 });

@@ -13,7 +13,8 @@ import {
 } from "@signatureops/schema";
 import { onboardingProcedure, protectedProcedure, publicProcedure, signedInProcedure, superAdminProcedure, router, type TRPCContext } from "../trpc";
 import { type AssetRecord } from "../lib/assets";
-import { isAllowedAssetUrl, resolvePublicAssetUrl } from "@/lib/asset-url";
+import { isAllowedAssetUrl } from "@/lib/asset-url";
+import { brandMediaUrl } from "@/lib/media-url";
 import { connectionsRouter, deployRouter, invitesRouter } from "./ops";
 import { hashToken } from "@/lib/crypto-token";
 import { buildCampaignMap, compileUserSignature, parseJson } from "../lib/compile-user-signature";
@@ -24,8 +25,9 @@ import {
   logoResolved,
 } from "../lib/compile-context";
 import { isReservedSlug, SlugSchema, slugify } from "@/lib/slug";
-import { isPersonTitleComplete } from "@/lib/onboarding";
+import { isOrgIntroComplete, isPersonTitleComplete } from "@/lib/onboarding";
 import {
+  isValidEmail,
   optionalText,
   validateImportRows,
   type MappedPersonRow,
@@ -42,6 +44,7 @@ import {
 } from "@signatureops/schema";
 import {
   BrandColorsSchema,
+  OrgCopySchema,
   SocialIconModeSchema,
   isUniqueSlot,
   kindForSlot,
@@ -74,6 +77,7 @@ export const orgRouter = router({
       ctx.prisma.organization.findUnique({
         where: { id: orgId },
         select: {
+          intro: true,
           onboardingSkipCampaign: true,
           _count: { select: { templates: true, users: true, campaigns: true } },
         },
@@ -87,6 +91,7 @@ export const orgRouter = router({
       templateCount: org._count.templates,
       userCount: org._count.users,
       hasLogo: logoCount > 0,
+      hasIntro: isOrgIntroComplete(org.intro),
       hasPersonWithTitle: people.some((person) => isPersonTitleComplete(person.jobTitle)),
       hasCampaign: org._count.campaigns > 0,
       hasTemplate: org._count.templates > 0,
@@ -106,7 +111,10 @@ export const orgRouter = router({
 const PersonFieldsSchema = z.object({
   displayName: z.string().trim().min(1),
   jobTitle: z.string().trim().min(1),
-  email: z.string().trim().email(),
+  email: z
+    .string()
+    .trim()
+    .refine(isValidEmail, { message: "Geçersiz e-posta" }),
   mobile: z.string().trim().optional().nullable(),
   department: z.string().trim().optional().nullable(),
   country: z.string().trim().optional().nullable(),
@@ -375,7 +383,7 @@ export const templatesRouter = router({
         assets: assets as AssetRecord[],
         campaigns: campaignMap,
         org,
-        fallbackPhotoUrl: fallbackPhoto?.url,
+        fallbackPhotoUrl: fallbackPhoto ? brandMediaUrl(fallbackPhoto.id, getBaseUrl()) : undefined,
         baseUrl: getBaseUrl(),
         activeCampaignId: active?.id,
       });
@@ -705,11 +713,22 @@ export const identityRouter = router({
     );
 
     return {
+      intro: org.intro ?? "",
+      legalDisclaimer: org.legalDisclaimer ?? "",
       colors: parseBrandColors(org.brandColors),
       socialIconMode: SocialIconModeSchema.catch("standard").parse(org.socialIconMode),
       slots,
       certifications: withUsage.filter((asset) => asset.slot === "certification"),
     };
+  }),
+  setCopy: protectedProcedure.input(OrgCopySchema).mutation(async ({ ctx, input }) => {
+    const orgId = await getOrgId(ctx);
+    const legalDisclaimer = input.legalDisclaimer?.trim() || null;
+    await ctx.prisma.organization.update({
+      where: { id: orgId },
+      data: { intro: input.intro, legalDisclaimer },
+    });
+    return { intro: input.intro, legalDisclaimer: legalDisclaimer ?? "" };
   }),
   setColors: protectedProcedure.input(BrandColorsSchema).mutation(async ({ ctx, input }) => {
     const orgId = await getOrgId(ctx);
@@ -878,6 +897,8 @@ export const authRouter = router({
       z.object({
         name: z.string().min(2).max(80),
         slug: z.string().min(2).max(80),
+        intro: OrgCopySchema.shape.intro,
+        legalDisclaimer: OrgCopySchema.shape.legalDisclaimer,
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -920,6 +941,8 @@ export const authRouter = router({
         data: {
           name: input.name.trim(),
           slug,
+          intro: input.intro,
+          legalDisclaimer: input.legalDisclaimer?.trim() || null,
           admins: {
             create: {
               email,

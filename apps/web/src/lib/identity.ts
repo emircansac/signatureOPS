@@ -32,6 +32,15 @@ export const BrandColorSchema = z.object({
   label: z.string().max(40).optional(),
 });
 
+export const OrgIntroSchema = z.string().trim().min(10).max(280);
+export const OrgLegalDisclaimerSchema = z.string().trim().max(1000);
+
+export const OrgCopySchema = z.object({
+  intro: OrgIntroSchema,
+  legalDisclaimer: OrgLegalDisclaimerSchema.optional(),
+});
+export type OrgCopy = z.infer<typeof OrgCopySchema>;
+
 export const BrandColorsSchema = z.array(BrandColorSchema).max(6);
 export type BrandColor = z.infer<typeof BrandColorSchema>;
 

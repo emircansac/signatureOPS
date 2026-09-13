@@ -7,7 +7,7 @@ import { useRouter } from "@/i18n/routing";
 import { signOut } from "next-auth/react";
 import { trpc } from "@/lib/trpc";
 import { PublicHeader } from "@/components/public-header";
-import { Button, Input, Label } from "@/components/ui";
+import { Button, Input, Label, Textarea } from "@/components/ui";
 import { slugify } from "@/lib/slug";
 
 export default function OnboardingPage({
@@ -22,6 +22,8 @@ export default function OnboardingPage({
   const { data: session, status, update } = useSession();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [intro, setIntro] = useState("");
+  const [legalDisclaimer, setLegalDisclaimer] = useState("");
   const createOrg = trpc.auth.createOrg.useMutation();
 
   if (status === "loading") {
@@ -60,6 +62,28 @@ export default function OnboardingPage({
             />
           </div>
           <div>
+            <Label>{t("orgIntro")}</Label>
+            <Textarea
+              rows={3}
+              maxLength={280}
+              className="font-sans"
+              value={intro}
+              onChange={(e) => setIntro(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-lead">{t("orgIntroHint")}</p>
+          </div>
+          <div>
+            <Label>{t("orgLegalDisclaimer")}</Label>
+            <Textarea
+              rows={3}
+              maxLength={1000}
+              className="font-sans"
+              value={legalDisclaimer}
+              onChange={(e) => setLegalDisclaimer(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-lead">{t("orgLegalDisclaimerHint")}</p>
+          </div>
+          <div>
             <Label>{t("orgSlug")}</Label>
             <Input
               value={slug}
@@ -73,10 +97,15 @@ export default function OnboardingPage({
             <p className="text-sm text-seal">{createOrg.error.message}</p>
           )}
           <Button
-            disabled={!name.trim() || !suggested || createOrg.isPending}
+            disabled={!name.trim() || intro.trim().length < 10 || !suggested || createOrg.isPending}
             onClick={async () => {
               try {
-                const result = await createOrg.mutateAsync({ name, slug: suggested });
+                const result = await createOrg.mutateAsync({
+                  name,
+                  slug: suggested,
+                  intro: intro.trim(),
+                  legalDisclaimer: legalDisclaimer.trim() || undefined,
+                });
                 await update();
                 window.location.assign(`/${locale}/app/${result.slug}`);
               } catch {

@@ -3,6 +3,7 @@ export type OnboardingStepId = (typeof ONBOARDING_STEP_IDS)[number];
 
 export type OnboardingFacts = {
   hasLogo: boolean;
+  hasIntro: boolean;
   hasPersonWithTitle: boolean;
   hasCampaign: boolean;
   hasTemplate: boolean;
@@ -20,9 +21,13 @@ export function isPersonTitleComplete(jobTitle: string | null | undefined): bool
   return Boolean(jobTitle?.trim());
 }
 
+export function isOrgIntroComplete(intro: string | null | undefined): boolean {
+  return Boolean(intro?.trim() && intro.trim().length >= 10);
+}
+
 export function onboardingState(facts: OnboardingFacts) {
   const done: Record<OnboardingStepId, boolean> = {
-    identity: facts.hasLogo,
+    identity: facts.hasLogo && facts.hasIntro,
     directory: facts.hasPersonWithTitle,
     campaign: facts.hasCampaign,
     template: facts.hasTemplate,
