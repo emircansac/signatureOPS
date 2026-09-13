@@ -55,7 +55,7 @@ export function compile(
   };
 
   const filtered = applyHiddenBlocks(definition, options.hiddenBlocks ?? []);
-  const html = wrapForVariant(compileBlocks(filtered, context, visibility), variant);
+  const html = wrapForVariant(compileBlocks(filtered, context, visibility), variant).trim();
   const plainText = stripHtml(html);
   const sizeBytes = new TextEncoder().encode(html).length;
 

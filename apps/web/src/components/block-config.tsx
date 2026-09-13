@@ -290,6 +290,13 @@ export function BlockConfig({
         </div>
       );
 
+    case "org_intro":
+      return (
+        <div className="mt-2 border-t border-rule pt-2">
+          <p className="text-sm text-lead">{t("orgIntroHint")}</p>
+        </div>
+      );
+
     case "custom_text":
       return (
         <div className="mt-2 border-t border-rule pt-2">

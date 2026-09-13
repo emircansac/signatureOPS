@@ -45,6 +45,14 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: "/api/auth/:path*",
+        headers: [
+          { key: "Cache-Control", value: "private, no-store, no-cache, must-revalidate" },
+          { key: "CDN-Cache-Control", value: "no-store" },
+          { key: "Vercel-CDN-Cache-Control", value: "no-store" },
+        ],
+      },
+      {
         source: "/:path*",
         headers: [
           ...securityHeaders,

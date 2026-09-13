@@ -116,6 +116,8 @@ describe("blockColumn", () => {
   it("puts logos on the left and text on the right when column is missing", () => {
     expect(defaultBlockColumn("company_logo")).toBe(1);
     expect(defaultBlockColumn("identity")).toBe(2);
+    expect(defaultBlockColumn("org_intro")).toBe("below");
+    expect(defaultBlockColumn("legal_disclaimer")).toBe("below");
     expect(
       blockColumn({ type: "identity", fields: ["displayName"] }, "two-column"),
     ).toBe(2);

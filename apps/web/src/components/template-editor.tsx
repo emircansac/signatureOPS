@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { TemplateDefinition, Block, Layout, TemplateColumn } from "@signatureops/schema";
-import { assignMissingColumns, blockColumn, defaultBlockColumn } from "@signatureops/schema";
+import { assignMissingColumns, blockColumn, defaultBlockColumn, defaultStackedColumn } from "@signatureops/schema";
 import { trpc } from "@/lib/trpc";
 import { BlockConfig } from "@/components/block-config";
 import { EmailComposePreview } from "@/components/email-compose-preview";
@@ -20,6 +20,7 @@ const BLOCK_TYPES = [
   "cta_button",
   "campaign_banner",
   "legal_disclaimer",
+  "org_intro",
   "certifications",
   "custom_text",
   "spacer",
@@ -55,6 +56,8 @@ function defaultBlock(
         text: ids.legalDisclaimer?.trim() || "Confidential. {{organization.name}}",
         assetId: "",
       };
+    case "org_intro":
+      return { type: "org_intro" };
     case "certifications":
       return { type: "certifications", assetIds: [] };
     case "custom_text":
@@ -189,7 +192,9 @@ export function TemplateEditor({
     return (
       <div>
         <div className="mb-2 flex items-center justify-between gap-2">
-          <Label>{column ? t(column === 1 ? "column1" : "column2") : t("blocks")}</Label>
+          <Label>
+            {column === 1 ? t("column1") : column === 2 ? t("column2") : column === "below" ? t("belowColumns") : t("blocks")}
+          </Label>
           <Select
             defaultValue=""
             onChange={(e) => {
@@ -221,15 +226,34 @@ export function TemplateEditor({
                 </button>
                 <div className="flex gap-1">
                   {definition.layout === "two-column" ? (
-                    <Button
-                      variant="ghost"
-                      title={t("moveToOtherColumn")}
-                      onClick={() =>
-                        moveBlockToColumn(index, blockColumn(block, "two-column") === 1 ? 2 : 1)
-                      }
-                    >
-                      {blockColumn(block, "two-column") === 1 ? "→" : "←"}
-                    </Button>
+                    blockColumn(block, "two-column") === "below" ? (
+                      <Button
+                        variant="ghost"
+                        title={t("moveToColumns")}
+                        onClick={() => moveBlockToColumn(index, defaultStackedColumn(block.type))}
+                      >
+                        {t("toColumns")}
+                      </Button>
+                    ) : (
+                      <>
+                        <Button
+                          variant="ghost"
+                          title={t("moveToOtherColumn")}
+                          onClick={() =>
+                            moveBlockToColumn(index, blockColumn(block, "two-column") === 1 ? 2 : 1)
+                          }
+                        >
+                          {blockColumn(block, "two-column") === 1 ? "→" : "←"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          title={t("moveBelow")}
+                          onClick={() => moveBlockToColumn(index, "below")}
+                        >
+                          {t("toBelow")}
+                        </Button>
+                      </>
+                    )
                   ) : null}
                   <Button variant="ghost" onClick={() => moveBlock(index, -1)}>
                     ↑
@@ -284,7 +308,13 @@ export function TemplateEditor({
           </div>
 
           {definition.layout === "two-column" ? (
-            <div className="grid gap-4 sm:grid-cols-2">{renderBlockList(1)}{renderBlockList(2)}</div>
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {renderBlockList(1)}
+                {renderBlockList(2)}
+              </div>
+              {renderBlockList("below")}
+            </div>
           ) : (
             renderBlockList()
           )}

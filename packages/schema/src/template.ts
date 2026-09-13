@@ -3,7 +3,7 @@ import { z } from "zod";
 export const LayoutSchema = z.enum(["single-column", "two-column"]);
 export type Layout = z.infer<typeof LayoutSchema>;
 
-export const TemplateColumnSchema = z.union([z.literal(1), z.literal(2)]);
+export const TemplateColumnSchema = z.union([z.literal(1), z.literal(2), z.literal("below")]);
 export type TemplateColumn = z.infer<typeof TemplateColumnSchema>;
 const ColumnFieldSchema = TemplateColumnSchema.optional();
 
@@ -116,6 +116,13 @@ export const CustomTextBlockSchema = z.object({
   column: ColumnFieldSchema,
 });
 
+export const OrgIntroBlockSchema = z.object({
+  type: z.literal("org_intro"),
+  visibleWhen: VisibleWhenSchema,
+  migrationWarning: MigrationWarningSchema,
+  column: ColumnFieldSchema,
+});
+
 export const SpacerBlockSchema = z.object({
   type: z.literal("spacer"),
   visibleWhen: VisibleWhenSchema,
@@ -141,6 +148,7 @@ export const BlockSchema = z.discriminatedUnion("type", [
   LegalDisclaimerBlockSchema,
   CertificationsBlockSchema,
   CustomTextBlockSchema,
+  OrgIntroBlockSchema,
   SpacerBlockSchema,
   DividerBlockSchema,
 ]);
@@ -287,14 +295,24 @@ export function collectTemplateAssetIds(definition: TemplateDefinition): string[
 }
 
 const LEFT_COLUMN_TYPES = new Set<Block["type"]>(["company_logo", "profile_photo"]);
+const BELOW_COLUMN_TYPES = new Set<Block["type"]>([
+  "org_intro",
+  "legal_disclaimer",
+  "campaign_banner",
+]);
+
+export function defaultStackedColumn(type: Block["type"]): 1 | 2 {
+  return LEFT_COLUMN_TYPES.has(type) ? 1 : 2;
+}
 
 export function defaultBlockColumn(type: Block["type"]): TemplateColumn {
-  return LEFT_COLUMN_TYPES.has(type) ? 1 : 2;
+  if (BELOW_COLUMN_TYPES.has(type)) return "below";
+  return defaultStackedColumn(type);
 }
 
 export function blockColumn(block: Block, layout: Layout): TemplateColumn {
   if (layout !== "two-column") return 1;
-  if (block.column === 1 || block.column === 2) return block.column;
+  if (block.column === 1 || block.column === 2 || block.column === "below") return block.column;
   return defaultBlockColumn(block.type);
 }
 
@@ -303,7 +321,7 @@ export function assignMissingColumns(definition: TemplateDefinition): TemplateDe
   return {
     ...definition,
     blocks: definition.blocks.map((block) =>
-      block.column === 1 || block.column === 2
+      block.column === 1 || block.column === 2 || block.column === "below"
         ? block
         : { ...block, column: defaultBlockColumn(block.type) },
     ),

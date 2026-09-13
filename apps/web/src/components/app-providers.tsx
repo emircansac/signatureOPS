@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
-    <SessionProvider>
+    <SessionProvider refetchOnWindowFocus={false}>
       <TRPCProvider>{children}</TRPCProvider>
     </SessionProvider>
   );

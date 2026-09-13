@@ -32,6 +32,7 @@ export const BLOCK_TYPES = [
   "cta_button",
   "campaign_banner",
   "legal_disclaimer",
+  "org_intro",
   "certifications",
   "custom_text",
   "spacer",

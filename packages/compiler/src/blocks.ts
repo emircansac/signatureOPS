@@ -127,6 +127,7 @@ function resolveColorHex(colorAssetId: string | null | undefined, context: Compi
 type BlockRenderOptions = {
   centered?: boolean;
   singleCell?: boolean;
+  colSpan?: number;
 };
 
 function tdAlign(opts: BlockRenderOptions): string {
@@ -139,8 +140,8 @@ function imgBoxStyle(opts: BlockRenderOptions, extra = ""): string {
 }
 
 function rowCellOpen(opts: BlockRenderOptions, extraStyle = ""): string {
-  const span = opts.singleCell ? "" : ' colspan="2"';
-  return `<td${span} style="${extraStyle}">`;
+  if (opts.singleCell) return `<td style="${extraStyle}">`;
+  return `<td colspan="${opts.colSpan ?? 2}" style="${extraStyle}">`;
 }
 
 function renderImg(
@@ -360,6 +361,12 @@ function renderCustomText(text: string, context: CompileContext, opts: BlockRend
   return `<tr>${rowCellOpen(opts, "padding:4px 0;")}<p style="font-family:Arial,sans-serif;font-size:12px;color:#333333;margin:0;padding:0;">${escapeHtml(resolved)}</p></td></tr>`;
 }
 
+function renderOrgIntro(context: CompileContext, opts: BlockRenderOptions = {}): string {
+  const intro = context.user.organization.intro?.trim();
+  if (!intro) return "";
+  return `<tr>${rowCellOpen(opts, "padding:8px 0 0 0;")}<p style="font-family:Arial,sans-serif;font-size:11px;color:#555555;margin:0;padding:0;line-height:1.4;">${escapeHtml(intro)}</p></td></tr>`;
+}
+
 function renderSpacer(opts: BlockRenderOptions = {}): string {
   return `<tr>${rowCellOpen(opts, "padding:0;height:8px;font-size:0;line-height:0;")}&nbsp;</td></tr>`;
 }
@@ -405,6 +412,8 @@ export function renderBlock(
       return renderCertifications(block, context, opts);
     case "custom_text":
       return renderCustomText(block.text, context, opts);
+    case "org_intro":
+      return renderOrgIntro(context, opts);
     case "spacer":
       return renderSpacer(opts);
     case "divider":
@@ -434,6 +443,7 @@ function compileTwoColumn(
 ): string {
   const left = definition.blocks.filter((block) => blockColumn(block, "two-column") === 1);
   const right = definition.blocks.filter((block) => blockColumn(block, "two-column") === 2);
+  const below = definition.blocks.filter((block) => blockColumn(block, "two-column") === "below");
   const leftHtml = compileColumnStack(left, context, visibility);
   const rightHtml = compileColumnStack(right, context, visibility);
   const cell = (html: string, padding: string) =>
@@ -442,13 +452,20 @@ function compileTwoColumn(
     definition.columnDivider && leftHtml && rightHtml
       ? `<td width="1" style="width:1px;border-left:1px solid #dddddd;font-size:0;line-height:0;padding:0 12px;">&nbsp;</td>`
       : "";
+  const colSpan = leftHtml && rightHtml ? (divider ? 3 : 2) : 1;
+  const belowRows = below
+    .map((block) => renderBlock(block, context, visibility, { colSpan }))
+    .filter(Boolean)
+    .join("");
 
-  const inner =
+  const columnsRow =
     leftHtml && rightHtml
       ? `<tr>${cell(leftHtml, divider ? "0 12px 0 0" : "0 16px 0 0")}${divider}${cell(rightHtml, "0")}</tr>`
-      : `<tr>${cell(leftHtml || rightHtml, "0")}</tr>`;
+      : leftHtml || rightHtml
+        ? `<tr>${cell(leftHtml || rightHtml, "0")}</tr>`
+        : "";
 
-  return `<table cellpadding="0" cellspacing="0" border="0" style="max-width:500px;font-family:Arial,sans-serif;"><tbody>${inner}</tbody></table>`;
+  return `<table cellpadding="0" cellspacing="0" border="0" style="max-width:500px;border-collapse:collapse;font-family:Arial,sans-serif;"><tbody>${columnsRow}${belowRows}</tbody></table>`;
 }
 
 export function compileBlocks(

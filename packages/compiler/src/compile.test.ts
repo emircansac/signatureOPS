@@ -188,6 +188,29 @@ describe("compile", () => {
     expect(html.indexOf("border-left:1px solid #dddddd")).toBeLessThan(html.indexOf("Ayşe Yılmaz"));
   });
 
+  it("renders intro and legal below the two-column row", () => {
+    const definition = parseTemplateDefinition({
+      layout: "two-column",
+      blocks: [
+        { type: "company_logo", assetId: "logo-1", column: 1 },
+        { type: "identity", fields: ["displayName"], column: 2 },
+        { type: "org_intro", column: "below" },
+        { type: "legal_disclaimer", text: "Gizlidir.", column: "below" },
+      ],
+    });
+    const html = compile(definition, {
+      ...baseContext,
+      user: {
+        ...baseContext.user,
+        organization: { ...baseContext.user.organization, intro: "Kurumsal yazılım." },
+      },
+    }).html;
+    expect(html.indexOf("logo.png")).toBeLessThan(html.indexOf("Kurumsal yazılım."));
+    expect(html.indexOf("Ayşe Yılmaz")).toBeLessThan(html.indexOf("Kurumsal yazılım."));
+    expect(html.indexOf("Kurumsal yazılım.")).toBeLessThan(html.indexOf("Gizlidir."));
+    expect(html).toContain('colspan="2"');
+  });
+
   it("respects hidden blocks", () => {
     const result = compile(fixtures.full!, baseContext, { hiddenBlocks: ["campaign_banner"] });
     expect(result.html).not.toContain("Campaign banner");
