@@ -22,9 +22,9 @@ test("seeded org shows quick actions, not onboarding or old dashboard blocks", a
   await expect(page.getByRole("heading", { name: "Nasıl kullanılır" })).toHaveCount(0);
 
   await expect(page.getByText("Gmail'e nasıl eklerim?")).toBeVisible();
-  await expect(page.getByText("Gmail → Ayarlar → Genel → İmza bölümüne yapıştırın")).not.toBeVisible();
+  await expect(page.getByText("gmail.com → Ayarlar → Genel → İmza kutusuna tıklayıp yapıştırın")).not.toBeVisible();
   await page.getByText("Gmail'e nasıl eklerim?").click();
-  await expect(page.getByText("Gmail → Ayarlar → Genel → İmza bölümüne yapıştırın")).toBeVisible();
+  await expect(page.getByText("gmail.com → Ayarlar → Genel → İmza kutusuna tıklayıp yapıştırın")).toBeVisible();
 });
 
 test("quick actions open create flows and counts navigate", async ({ page }) => {

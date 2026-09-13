@@ -48,7 +48,7 @@ export async function GET(
         );
         const bytes = await object.Body?.transformToByteArray();
         if (bytes) {
-          return new Response(bytes, {
+          return new Response(Buffer.from(bytes), {
             headers: {
               "Content-Type": object.ContentType ?? "image/png",
               "Cache-Control": "public, max-age=31536000, immutable",
