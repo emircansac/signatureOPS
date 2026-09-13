@@ -10,35 +10,46 @@ async function attachOrg(token: JWT): Promise<JWT> {
   const email = typeof token.email === "string" ? token.email : undefined;
   if (!googleSub && !email) return token;
 
-  const admin = await prisma.adminUser.findFirst({
-    where: {
-      OR: [...(googleSub ? [{ googleSub }] : []), ...(email ? [{ email }] : [])],
-    },
-    include: { org: true },
-  });
+  try {
+    const admin = await prisma.adminUser.findFirst({
+      where: {
+        OR: [...(googleSub ? [{ googleSub }] : []), ...(email ? [{ email }] : [])],
+      },
+      select: {
+        id: true,
+        orgId: true,
+        role: true,
+        googleSub: true,
+        org: { select: { slug: true, name: true } },
+      },
+    });
 
-  if (!admin) {
-    token.adminUserId = null;
-    token.orgId = null;
-    token.orgSlug = null;
-    token.orgName = null;
-    token.role = null;
+    if (!admin) {
+      token.adminUserId = null;
+      token.orgId = null;
+      token.orgSlug = null;
+      token.orgName = null;
+      token.role = null;
+      return token;
+    }
+
+    if (googleSub && admin.googleSub !== googleSub) {
+      await prisma.adminUser.update({
+        where: { id: admin.id },
+        data: { googleSub },
+      });
+    }
+
+    token.adminUserId = admin.id;
+    token.orgId = admin.orgId;
+    token.orgSlug = admin.org.slug;
+    token.orgName = admin.org.name;
+    token.role = admin.role;
+    return token;
+  } catch (error) {
+    console.error("attachOrg failed", error);
     return token;
   }
-
-  if (googleSub && admin.googleSub !== googleSub) {
-    await prisma.adminUser.update({
-      where: { id: admin.id },
-      data: { googleSub },
-    });
-  }
-
-  token.adminUserId = admin.id;
-  token.orgId = admin.orgId;
-  token.orgSlug = admin.org.slug;
-  token.orgName = admin.org.name;
-  token.role = admin.role;
-  return token;
 }
 
 const nextAuth = NextAuth({
