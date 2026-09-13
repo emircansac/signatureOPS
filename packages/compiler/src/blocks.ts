@@ -438,10 +438,14 @@ function compileTwoColumn(
   const rightHtml = compileColumnStack(right, context, visibility);
   const cell = (html: string, padding: string) =>
     `<td style="vertical-align:middle;text-align:center;padding:${padding};">${html}</td>`;
+  const divider =
+    definition.columnDivider && leftHtml && rightHtml
+      ? `<td width="1" style="width:1px;border-left:1px solid #dddddd;font-size:0;line-height:0;padding:0 12px;">&nbsp;</td>`
+      : "";
 
   const inner =
     leftHtml && rightHtml
-      ? `<tr>${cell(leftHtml, "0 16px 0 0")}${cell(rightHtml, "0")}</tr>`
+      ? `<tr>${cell(leftHtml, divider ? "0 12px 0 0" : "0 16px 0 0")}${divider}${cell(rightHtml, "0")}</tr>`
       : `<tr>${cell(leftHtml || rightHtml, "0")}</tr>`;
 
   return `<table cellpadding="0" cellspacing="0" border="0" style="max-width:500px;font-family:Arial,sans-serif;"><tbody>${inner}</tbody></table>`;

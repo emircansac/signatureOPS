@@ -269,6 +269,18 @@ export function TemplateEditor({
               <option value="single-column">{t("singleColumn")}</option>
               <option value="two-column">{t("twoColumn")}</option>
             </Select>
+            {definition.layout === "two-column" ? (
+              <label className="mt-2 flex items-center gap-2 text-sm text-ink">
+                <input
+                  type="checkbox"
+                  checked={definition.columnDivider === true}
+                  onChange={(e) =>
+                    setDefinition({ ...definition, columnDivider: e.target.checked })
+                  }
+                />
+                {t("columnDivider")}
+              </label>
+            ) : null}
           </div>
 
           {definition.layout === "two-column" ? (

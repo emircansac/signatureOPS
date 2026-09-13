@@ -81,6 +81,16 @@ describe("TemplateDefinition", () => {
     });
     expect(parsed.blocks[0]).toMatchObject({ type: "company_logo", column: 1 });
     expect(parsed.blocks[1]).toMatchObject({ type: "identity", column: 2 });
+    expect(parsed.columnDivider).toBeUndefined();
+  });
+
+  it("keeps an optional column divider flag", () => {
+    const parsed = parseTemplateDefinition({
+      layout: "two-column",
+      columnDivider: true,
+      blocks: [{ type: "identity", fields: ["displayName"], column: 2 }],
+    });
+    expect(parsed.columnDivider).toBe(true);
   });
 
   it("normalizes legacy logo and certifications blocks", () => {

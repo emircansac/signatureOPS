@@ -111,6 +111,7 @@
     "layout": "Layout",
     "singleColumn": "Single column",
     "twoColumn": "Two column",
+    "columnDivider": "Vertical line between columns",
     "column1": "Column 1",
     "column2": "Column 2",
     "moveToOtherColumn": "Move to other column",

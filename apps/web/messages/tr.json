@@ -111,6 +111,7 @@
     "layout": "Düzen",
     "singleColumn": "Tek sütun",
     "twoColumn": "İki sütun",
+    "columnDivider": "Sütunlar arasına dikey çizgi",
     "column1": "1. sütun",
     "column2": "2. sütun",
     "moveToOtherColumn": "Diğer sütuna al",

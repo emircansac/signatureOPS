@@ -149,6 +149,7 @@ export type Block = z.infer<typeof BlockSchema>;
 
 export const TemplateDefinitionSchema = z.object({
   layout: LayoutSchema,
+  columnDivider: z.boolean().optional(),
   blocks: z.array(BlockSchema).min(1),
 });
 

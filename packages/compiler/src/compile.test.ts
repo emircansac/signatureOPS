@@ -170,6 +170,22 @@ describe("compile", () => {
     expect(html.match(/vertical-align:middle;text-align:center/g)?.length).toBeGreaterThanOrEqual(2);
     expect(html.indexOf("logo.png")).toBeLessThan(html.indexOf("Ayşe Yılmaz"));
     expect(html.indexOf("Ayşe Yılmaz")).toBeLessThan(html.indexOf("+90 555 123 4567"));
+    expect(html).not.toContain("border-left:1px solid #dddddd");
+  });
+
+  it("draws a vertical rule between two-column stacks when asked", () => {
+    const definition = parseTemplateDefinition({
+      layout: "two-column",
+      columnDivider: true,
+      blocks: [
+        { type: "company_logo", assetId: "logo-1", column: 1 },
+        { type: "identity", fields: ["displayName"], column: 2 },
+      ],
+    });
+    const html = compile(definition, baseContext).html;
+    expect(html).toContain("border-left:1px solid #dddddd");
+    expect(html.indexOf("logo.png")).toBeLessThan(html.indexOf("border-left:1px solid #dddddd"));
+    expect(html.indexOf("border-left:1px solid #dddddd")).toBeLessThan(html.indexOf("Ayşe Yılmaz"));
   });
 
   it("respects hidden blocks", () => {
