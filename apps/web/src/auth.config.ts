@@ -5,10 +5,11 @@ import { authSecret, googleAuthCredentials, sanitizeAuthEnv } from "./lib/auth-e
 sanitizeAuthEnv();
 
 const google = googleAuthCredentials();
+const secret = authSecret();
 
 export const authConfig = {
   trustHost: true,
-  secret: authSecret(),
+  ...(secret ? { secret } : {}),
   pages: {
     signIn: "/tr/giris",
     error: "/tr/giris",

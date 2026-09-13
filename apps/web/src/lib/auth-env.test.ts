@@ -22,6 +22,15 @@ describe("sanitizeAuthEnv", () => {
     sanitizeAuthEnv(env);
     expect(env.AUTH_URL).toBe("https://signature-ops-web-xi.vercel.app");
   });
+
+  it("fills AUTH_URL from the Vercel host when unset", () => {
+    const env: NodeJS.ProcessEnv = {
+      VERCEL: "1",
+      VERCEL_PROJECT_PRODUCTION_URL: "signature-ops-web-xi.vercel.app",
+    };
+    sanitizeAuthEnv(env);
+    expect(env.AUTH_URL).toBe("https://signature-ops-web-xi.vercel.app");
+  });
 });
 
 describe("auth credentials", () => {
