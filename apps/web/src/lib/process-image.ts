@@ -23,11 +23,72 @@ function needsEmailSafeRaster(mime: string): boolean {
   return mime === "image/gif" || mime === "image/webp";
 }
 
+function isLogoSlot(slot: string): boolean {
+  return slot === "logo_mark" || slot.startsWith("logo");
+}
+
+/** Logos are normalized so file pixels match displayWidth/Height × density (no client stretch). */
+async function processLogoUpload(buffer: Buffer, slot: string): Promise<ProcessedUpload> {
+  const box = storageDisplayBoxForSlot(slot);
+  let pipeline = sharp(buffer, { animated: false, pages: 1, failOn: "none" }).rotate().trim({
+    threshold: 12,
+  });
+
+  const trimmed = await pipeline.metadata();
+  const srcW = trimmed.width ?? 0;
+  const srcH = trimmed.height ?? 0;
+  const display = fitInsideBox(srcW || box.width, srcH || box.height, box.width, box.height);
+  const pixelW = display.width * STORE_PIXEL_DENSITY;
+  const pixelH = display.height * STORE_PIXEL_DENSITY;
+
+  const out = await pipeline
+    .resize(pixelW, pixelH, {
+      fit: "contain",
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+      kernel: sharp.kernel.lanczos3,
+    })
+    .png({ compressionLevel: 6, adaptiveFiltering: true, palette: false })
+    .toBuffer();
+
+  const outMeta = await sharp(out).metadata();
+  const displayWidth = Math.max(1, Math.round((outMeta.width ?? pixelW) / STORE_PIXEL_DENSITY));
+  const displayHeight = Math.max(1, Math.round((outMeta.height ?? pixelH) / STORE_PIXEL_DENSITY));
+
+  return {
+    buffer: out,
+    mime: "image/png",
+    ext: "png",
+    displayWidth,
+    displayHeight,
+  };
+}
+
+const PROBE_MAX_BYTES = 500_000;
+
+/** Read pixel size after EXIF rotation (for URL imports without client-side dimensions). */
+export async function probeImagePixelSize(url: string): Promise<{ width: number; height: number } | null> {
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length === 0 || buf.length > PROBE_MAX_BYTES) return null;
+    const meta = await sharp(buf, { animated: false, pages: 1, failOn: "none" }).rotate().metadata();
+    if (!meta.width || !meta.height) return null;
+    return { width: meta.width, height: meta.height };
+  } catch {
+    return null;
+  }
+}
+
 export async function processUploadImage(
   buffer: Buffer,
   mime: string,
   slot: string,
 ): Promise<ProcessedUpload> {
+  if (isLogoSlot(slot)) {
+    return processLogoUpload(buffer, slot);
+  }
+
   const meta = await sharp(buffer, { animated: false, pages: 1, failOn: "none" }).metadata();
   const srcW = meta.width ?? 0;
   const srcH = meta.height ?? 0;

@@ -11,6 +11,7 @@ import {
 } from "@signatureops/schema";
 import { onboardingProcedure, protectedProcedure, publicProcedure, signedInProcedure, superAdminProcedure, router, type TRPCContext } from "../trpc";
 import { isAllowedAssetUrl } from "@/lib/asset-url";
+import { probeImagePixelSize } from "@/lib/process-image";
 import { connectionsRouter, deployRouter, invitesRouter } from "./ops";
 import { hashToken } from "@/lib/crypto-token";
 import { compileUserSignature, parseJson } from "../lib/compile-user-signature";
@@ -834,7 +835,16 @@ export const assetsRouter = router({
       const orgId = await getOrgId(ctx);
       assertAssetUrl(input.url);
       const kind = kindForSlot(input.slot as IdentitySlot);
-      const display = fittedStorageSize(input.slot, input.width, input.height);
+      let width = input.width;
+      let height = input.height;
+      if (!width || !height) {
+        const probed = await probeImagePixelSize(input.url);
+        if (probed) {
+          width = probed.width;
+          height = probed.height;
+        }
+      }
+      const display = fittedStorageSize(input.slot, width, height);
       const data = {
         kind,
         url: input.url,

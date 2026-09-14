@@ -126,12 +126,19 @@ function resolveColorHex(colorAssetId: string | null | undefined, context: Compi
 
 type BlockRenderOptions = {
   centered?: boolean;
+  /** Two-column right stack: vertically centered, left-aligned text. */
+  textColumn?: boolean;
+  /** Full-width rows below the column pair. */
+  fullWidthLeft?: boolean;
   singleCell?: boolean;
   colSpan?: number;
 };
 
 function tdAlign(opts: BlockRenderOptions): string {
-  return opts.centered ? "vertical-align:middle;text-align:center;" : "vertical-align:top;";
+  if (opts.centered) return "vertical-align:middle;text-align:center;";
+  if (opts.textColumn) return "vertical-align:middle;text-align:left;";
+  if (opts.fullWidthLeft) return "vertical-align:top;text-align:left;";
+  return "vertical-align:top;";
 }
 
 function imgBoxStyle(opts: BlockRenderOptions, extra = ""): string {
@@ -140,8 +147,10 @@ function imgBoxStyle(opts: BlockRenderOptions, extra = ""): string {
 }
 
 function rowCellOpen(opts: BlockRenderOptions, extraStyle = ""): string {
-  if (opts.singleCell) return `<td style="${extraStyle}">`;
-  return `<td colspan="${opts.colSpan ?? 2}" style="${extraStyle}">`;
+  const align = opts.fullWidthLeft ? tdAlign(opts) : "";
+  const style = align ? `${align}${extraStyle}` : extraStyle;
+  if (opts.singleCell) return `<td style="${style}">`;
+  return `<td colspan="${opts.colSpan ?? 2}" style="${style}">`;
 }
 
 function renderImg(
@@ -171,7 +180,7 @@ function renderIdentity(fields: string[], context: CompileContext, opts: BlockRe
     .filter(Boolean)
     .join("");
 
-  const padding = opts.centered ? "0" : "0 12px 0 0";
+  const padding = opts.centered || opts.textColumn ? "0" : "0 12px 0 0";
   return `<td style="${tdAlign(opts)}padding:${padding};">${lines}</td>`;
 }
 
@@ -432,13 +441,17 @@ function compileColumnStack(
   blocks: Block[],
   context: CompileContext,
   visibility: VisibilityContext,
+  stackOpts: BlockRenderOptions,
 ): string {
   const rows = blocks
-    .map((block) => renderBlock(block, context, visibility, { centered: true, singleCell: true }))
+    .map((block) => renderBlock(block, context, visibility, { ...stackOpts, singleCell: true }))
     .filter(Boolean)
     .join("");
   if (!rows) return "";
-  return `<table cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;"><tbody>${rows}</tbody></table>`;
+  const tableAttrs = stackOpts.centered
+    ? 'align="center" style="margin:0 auto;"'
+    : 'align="left"';
+  return `<table cellpadding="0" cellspacing="0" border="0" ${tableAttrs}><tbody>${rows}</tbody></table>`;
 }
 
 function compileTwoColumn(
@@ -449,25 +462,25 @@ function compileTwoColumn(
   const left = definition.blocks.filter((block) => blockColumn(block, "two-column") === 1);
   const right = definition.blocks.filter((block) => blockColumn(block, "two-column") === 2);
   const below = definition.blocks.filter((block) => blockColumn(block, "two-column") === "below");
-  const leftHtml = compileColumnStack(left, context, visibility);
-  const rightHtml = compileColumnStack(right, context, visibility);
-  const cell = (html: string, padding: string) =>
-    `<td style="vertical-align:middle;text-align:center;padding:${padding};">${html}</td>`;
+  const leftHtml = compileColumnStack(left, context, visibility, { centered: true });
+  const rightHtml = compileColumnStack(right, context, visibility, { textColumn: true });
+  const cell = (html: string, padding: string, textAlign: "center" | "left") =>
+    `<td style="vertical-align:middle;text-align:${textAlign};padding:${padding};">${html}</td>`;
   const divider =
     definition.columnDivider && leftHtml && rightHtml
       ? `<td width="1" style="width:1px;border-left:1px solid #dddddd;font-size:0;line-height:0;padding:0 12px;">&nbsp;</td>`
       : "";
   const colSpan = leftHtml && rightHtml ? (divider ? 3 : 2) : 1;
   const belowRows = below
-    .map((block) => renderBlock(block, context, visibility, { colSpan }))
+    .map((block) => renderBlock(block, context, visibility, { colSpan, fullWidthLeft: true }))
     .filter(Boolean)
     .join("");
 
   const columnsRow =
     leftHtml && rightHtml
-      ? `<tr>${cell(leftHtml, divider ? "0 12px 0 0" : "0 16px 0 0")}${divider}${cell(rightHtml, "0")}</tr>`
+      ? `<tr>${cell(leftHtml, divider ? "0 12px 0 0" : "0 16px 0 0", "center")}${divider}${cell(rightHtml, "0", "left")}</tr>`
       : leftHtml || rightHtml
-        ? `<tr>${cell(leftHtml || rightHtml, "0")}</tr>`
+        ? `<tr>${cell(leftHtml || rightHtml, "0", leftHtml ? "center" : "left")}</tr>`
         : "";
 
   return `<table cellpadding="0" cellspacing="0" border="0" style="max-width:500px;border-collapse:collapse;font-family:Arial,sans-serif;"><tbody>${columnsRow}${belowRows}</tbody></table>`;

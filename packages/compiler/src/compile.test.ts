@@ -156,7 +156,7 @@ describe("compile", () => {
     expect(html).toContain("Bu e-posta gizlidir.");
   });
 
-  it("places two-column blocks side by side and centers them", () => {
+  it("places two-column blocks side by side with a centered logo and left-aligned text", () => {
     const definition = parseTemplateDefinition({
       layout: "two-column",
       blocks: [
@@ -167,7 +167,7 @@ describe("compile", () => {
     });
     const html = compile(definition, baseContext).html;
     expect(html).toContain('vertical-align:middle;text-align:center');
-    expect(html.match(/vertical-align:middle;text-align:center/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(html).toContain('vertical-align:middle;text-align:left');
     expect(html.indexOf("logo.png")).toBeLessThan(html.indexOf("Ayşe Yılmaz"));
     expect(html.indexOf("Ayşe Yılmaz")).toBeLessThan(html.indexOf("+90 555 123 4567"));
     expect(html).not.toContain("border-left:1px solid #dddddd");
@@ -205,6 +205,7 @@ describe("compile", () => {
         organization: { ...baseContext.user.organization, intro: "Kurumsal yazılım." },
       },
     }).html;
+    expect(html).toContain("vertical-align:top;text-align:left;");
     expect(html.indexOf("logo.png")).toBeLessThan(html.indexOf("Kurumsal yazılım."));
     expect(html.indexOf("Ayşe Yılmaz")).toBeLessThan(html.indexOf("Kurumsal yazılım."));
     expect(html.indexOf("Kurumsal yazılım.")).toBeLessThan(html.indexOf("Gizlidir."));
