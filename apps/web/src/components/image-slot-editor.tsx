@@ -8,6 +8,7 @@ import { brandMediaPath } from "@/lib/media-url";
 import { readImageSize, uploadImageFile } from "@/lib/upload-image";
 import type { IdentitySlot } from "@/lib/identity";
 import { Button, Input, Label } from "@/components/ui";
+import { useNotifySaved } from "@/components/saved-feedback";
 import { cn } from "@/lib/utils";
 
 type Source = "file" | "url";
@@ -49,6 +50,7 @@ export function ImageSlotEditor({
   const t = useTranslations("identity");
   const ta = useTranslations("assets");
   const tc = useTranslations("common");
+  const notifySaved = useNotifySaved();
   const utils = trpc.useUtils();
   const fileRef = useRef<HTMLInputElement>(null);
   const isLogoSlot = slot.startsWith("logo");
@@ -81,6 +83,7 @@ export function ImageSlotEditor({
       utils.assets.list.invalidate();
       resetDraft();
       setReplacing(!asset);
+      notifySaved();
     },
     onError: (err) => setError(err.message),
   });
@@ -89,6 +92,7 @@ export function ImageSlotEditor({
     onSuccess: () => {
       utils.identity.get.invalidate();
       utils.assets.list.invalidate();
+      notifySaved();
     },
     onError: (err) => setError(err.message),
   });

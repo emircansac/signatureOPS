@@ -6,14 +6,17 @@ import { trpc } from "@/lib/trpc";
 import { Card, PageHeading } from "@/components/ui";
 import { TemplateEditor } from "@/components/template-editor";
 import { consumeCreateQuery } from "@/lib/create-query";
+import { useNotifySaved } from "@/components/saved-feedback";
 
 export default function TemplatesPage() {
   const t = useTranslations("templates");
+  const notifySaved = useNotifySaved();
   const utils = trpc.useUtils();
   const createMutation = trpc.templates.create.useMutation({
     onSuccess: () => {
       utils.templates.list.invalidate();
       utils.templates.listCompiled.invalidate();
+      notifySaved();
     },
   });
 

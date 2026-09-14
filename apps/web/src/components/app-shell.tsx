@@ -7,6 +7,7 @@ import { Link, usePathname } from "@/i18n/routing";
 import { cn } from "@/lib/utils";
 import { orgPath } from "@/lib/org-path";
 import { LogoMark } from "@/components/logo-mark";
+import { SavedFeedbackProvider } from "@/components/saved-feedback";
 import type { ReactNode } from "react";
 
 function isActive(pathname: string, href: string, exact = false) {
@@ -61,6 +62,7 @@ export function AppShell({
   }, [sidebarOpen]);
 
   return (
+    <SavedFeedbackProvider>
     <div className="min-h-screen bg-paper">
       <header className="sticky top-0 z-40 bg-paper">
         <div className="mx-auto flex max-w-[1080px] items-center justify-between gap-4 px-6 py-4">
@@ -208,5 +210,6 @@ export function AppShell({
 
       <main className="mx-auto max-w-[1080px] px-6 py-10">{children}</main>
     </div>
+    </SavedFeedbackProvider>
   );
 }

@@ -4,15 +4,20 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { trpc } from "@/lib/trpc";
 import { Button, Card, Input, PageHeading } from "@/components/ui";
+import { useNotifySaved } from "@/components/saved-feedback";
 
 export default function SettingsPage() {
   const t = useTranslations("settings");
   const tc = useTranslations("common");
+  const notifySaved = useNotifySaved();
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.connections.get.useQuery();
   const invites = trpc.invites.list.useQuery();
   const save = trpc.connections.save.useMutation({
-    onSuccess: () => utils.connections.get.invalidate(),
+    onSuccess: () => {
+      utils.connections.get.invalidate();
+      notifySaved();
+    },
   });
   const createInvite = trpc.invites.create.useMutation({
     onSuccess: () => utils.invites.list.invalidate(),

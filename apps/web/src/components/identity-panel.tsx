@@ -11,6 +11,7 @@ import {
 } from "@/lib/identity";
 import { ImageSlotEditor } from "@/components/image-slot-editor";
 import { Button, Card, Input, Label, Textarea } from "@/components/ui";
+import { useNotifySaved } from "@/components/saved-feedback";
 import { cn } from "@/lib/utils";
 
 const MAX_COLORS = 6;
@@ -134,6 +135,7 @@ export function IdentityPanel() {
 function OrgCopyCard({ intro, legalDisclaimer }: { intro: string; legalDisclaimer: string }) {
   const t = useTranslations("identity");
   const tc = useTranslations("common");
+  const notifySaved = useNotifySaved();
   const utils = trpc.useUtils();
   const [copy, setCopy] = useState({ intro, legalDisclaimer });
   const copyRef = useRef(copy);
@@ -145,6 +147,7 @@ function OrgCopyCard({ intro, legalDisclaimer }: { intro: string; legalDisclaime
       utils.identity.get.invalidate();
       utils.org.dashboard.invalidate();
       setError("");
+      notifySaved();
     },
     onError: (err) => setError(err.message),
   });
@@ -216,6 +219,7 @@ function paletteSignature(colors: BrandColor[]): string {
 function PaletteCard({ initial }: { initial: BrandColor[] }) {
   const t = useTranslations("identity");
   const tc = useTranslations("common");
+  const notifySaved = useNotifySaved();
   const utils = trpc.useUtils();
   const [colors, setColors] = useState<BrandColor[]>(initial);
   const colorsRef = useRef(colors);
@@ -226,6 +230,7 @@ function PaletteCard({ initial }: { initial: BrandColor[] }) {
       setColors(next);
       utils.identity.get.invalidate();
       setError("");
+      notifySaved();
     },
     onError: (err) => setError(err.message),
   });

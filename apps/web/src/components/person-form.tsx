@@ -10,6 +10,7 @@ import { isValidEmail } from "@/lib/directory-import";
 import { joinDisplayName, personPhotoFilename, personPhotoStem, splitDisplayName } from "@/lib/person-name";
 import { countrySelectOptions } from "@/lib/country-options";
 import { Button, Card, Input, Label, Select } from "@/components/ui";
+import { useNotifySaved } from "@/components/saved-feedback";
 
 const MAX_BYTES = 500_000;
 const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
@@ -36,6 +37,7 @@ export function PersonForm({
 }) {
   const t = useTranslations("directory");
   const tc = useTranslations("common");
+  const notifySaved = useNotifySaved();
   const locale = useLocale();
   const countryOptions = countrySelectOptions(locale);
   const utils = trpc.useUtils();
@@ -131,6 +133,7 @@ export function PersonForm({
         await createMutation.mutateAsync(payload);
       }
       await utils.users.list.invalidate();
+      notifySaved();
       onClose();
     } catch (err) {
       const code = err instanceof Error ? err.message : "";

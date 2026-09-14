@@ -6,6 +6,7 @@ import { parseTemplateDefinition } from "@signatureops/schema";
 import { trpc } from "@/lib/trpc";
 import { Card, PageHeading } from "@/components/ui";
 import { TemplateEditor } from "@/components/template-editor";
+import { useNotifySaved } from "@/components/saved-feedback";
 
 export default function TemplateEditPage({
   params,
@@ -14,6 +15,7 @@ export default function TemplateEditPage({
 }) {
   const { id } = use(params);
   const t = useTranslations("templates");
+  const notifySaved = useNotifySaved();
   const utils = trpc.useUtils();
   const { data: template, isLoading } = trpc.templates.get.useQuery({ id });
   const updateMutation = trpc.templates.update.useMutation({
@@ -21,6 +23,7 @@ export default function TemplateEditPage({
       utils.templates.list.invalidate();
       utils.templates.listCompiled.invalidate();
       utils.templates.get.invalidate({ id });
+      notifySaved();
     },
   });
 

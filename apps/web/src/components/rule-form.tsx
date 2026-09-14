@@ -6,6 +6,7 @@ import type { RuleAction, RuleCondition, RuleLevel } from "@signatureops/schema"
 import { trpc } from "@/lib/trpc";
 import { AssetPicker } from "@/components/asset-picker";
 import { Button, Card, Input, Label, Select, Textarea } from "@/components/ui";
+import { useNotifySaved } from "@/components/saved-feedback";
 import {
   ACTION_TYPES,
   BLOCK_TYPES,
@@ -275,6 +276,7 @@ export function RuleForm({
   const t = useTranslations("rules");
   const tc = useTranslations("common");
   const tb = useTranslations("blocks");
+  const notifySaved = useNotifySaved();
   const utils = trpc.useUtils();
   const editing = Boolean(rule);
 
@@ -357,6 +359,7 @@ export function RuleForm({
         await createMutation.mutateAsync(payload);
       }
       await utils.rules.list.invalidate();
+      notifySaved();
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("saveFailed"));

@@ -6,6 +6,7 @@ import { CAMPAIGN_SLOGAN_MAX, addDaysYmd, campaignYmd } from "@signatureops/sche
 import { trpc } from "@/lib/trpc";
 import { AssetPicker } from "@/components/asset-picker";
 import { Button, Card, Input, Label } from "@/components/ui";
+import { useNotifySaved } from "@/components/saved-feedback";
 
 export type CampaignRecord = {
   id: string;
@@ -37,6 +38,7 @@ export function CampaignForm({
 }) {
   const t = useTranslations("campaigns");
   const tc = useTranslations("common");
+  const notifySaved = useNotifySaved();
   const utils = trpc.useUtils();
   const { data: templates } = trpc.templates.list.useQuery();
   const editing = Boolean(campaign);
@@ -108,6 +110,7 @@ export function CampaignForm({
         utils.templates.compilePreview.invalidate(),
         utils.assets.list.invalidate(),
       ]);
+      notifySaved();
       onClose();
     } catch (err) {
       const message = err instanceof Error ? err.message : "";
