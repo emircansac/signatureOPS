@@ -2,6 +2,8 @@
   "$schema": "https://turbo.build/schema.json",
   "globalPassThroughEnv": [
     "DATABASE_URL",
+    "DIRECT_URL",
+    "PRISMA_MIGRATE_ADVISORY_LOCK_TIMEOUT",
     "AUTH_SECRET",
     "AUTH_TRUST_HOST",
     "GOOGLE_CLIENT_ID",

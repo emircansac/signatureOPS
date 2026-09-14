@@ -12,10 +12,10 @@
     }
   },
   "scripts": {
-    "build": "prisma generate && tsc",
-    "generate": "prisma generate",
+    "build": "tsx src/run-prisma-cli.ts generate && tsc",
+    "generate": "tsx src/run-prisma-cli.ts generate",
     "migrate": "prisma migrate dev",
-    "migrate:deploy": "prisma migrate deploy",
+    "migrate:deploy": "tsx src/migrate-deploy.ts",
     "push": "prisma db push",
     "seed": "tsx src/seed.ts",
     "migrate:assets": "tsx src/migrate-template-assets.ts",

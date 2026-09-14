@@ -27,7 +27,7 @@ Public site: `/tr`. Admin panel: `/tr/app/{slug}`. Privacy: `/tr/gizlilik`.
 ## Staging / production (Vercel + Neon + R2 + Inngest)
 
 1. Create a GitHub repo and push this project.
-2. Neon: create a Postgres database; copy the connection string to `DATABASE_URL`.
+2. Neon: set `DATABASE_URL` to the **pooled** connection string for the app. For migrations, set `DIRECT_URL` to the **direct** host (or rely on `migrate:deploy`, which strips `-pooler` from Neon URLs automatically).
 3. Cloudflare R2: bucket + API token; public hostname (`R2_PUBLIC_BASE_URL`, HTTPS).
 4. Vercel: import the GitHub repo (root of the monorepo). Set env vars from `.env.example` (`AUTH_SECRET`, `GOOGLE_*`, `DATABASE_URL`, `NEXT_PUBLIC_APP_URL`, `AUTH_URL`, `R2_*`).
 5. Google Cloud OAuth client authorized redirect: `https://<domain>/api/auth/callback/google`.
