@@ -39,7 +39,12 @@ function defaultBlock(
     case "contact_details":
       return { type: "contact_details", fields: ["email", "mobile"] };
     case "company_logo":
-      return { type: "company_logo", assetId: ids.logo ?? "", logoVariant: "default" };
+      return {
+        type: "company_logo",
+        assetId: ids.logo ?? "",
+        logoVariant: "default",
+        logoSize: "small",
+      };
     case "profile_photo":
       return { type: "profile_photo" };
     case "social_links":

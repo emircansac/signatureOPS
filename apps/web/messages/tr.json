@@ -176,6 +176,12 @@
       "dark": "Koyu zemin",
       "mark": "Sadece amblem"
     },
+    "logoSize": "Logo boyutu",
+    "logoSizes": {
+      "small": "Küçük",
+      "large": "Büyük"
+    },
+    "logoSizeHint": "Küçük en fazla 120×40, büyük 180×60 px (amblem 40×40 / 60×60).",
     "emptyPalette": "Kimlik sayfasında henüz renk tanımlanmamış, varsayılan marka rengi kullanılacak.",
     "defaultTokenColor": "Varsayılan",
     "ctaColor": "Buton rengi",
@@ -228,6 +234,7 @@
     "uploadAction": "Yükle",
     "previewTitle": "Önizleme",
     "displaySizeHint": "İmzada en fazla {width}×{height} px. Dosya keskin kalsın diye daha yüksek çözünürlük saklanır.",
+    "logoDisplaySizeHint": "Şablonda küçük ({smallW}×{smallH}) veya büyük ({largeW}×{largeH}) seçilir. Dosya büyük boyuta yetecek çözünürlükte saklanır.",
     "uploadFailed": "Yükleme başarısız",
     "deleteForbidden": "Görseli yalnızca süper yönetici silebilir.",
     "search": "Görsel ara",
@@ -264,7 +271,7 @@
     "legalDisclaimer": "Yasal uyarı",
     "legalDisclaimerHint": "İsteğe bağlı. Yeni yasal uyarı bloğu bu metni kullanır.",
     "logo": "Logo",
-    "logoHint": "Şablonlardaki varsayılan logo. İmzada en fazla 120×40 px olarak gösterilir.",
+    "logoHint": "Şablonlardaki varsayılan logo. Şablonda küçük (120×40) veya büyük (180×60) seçilir.",
     "logoRequiredHint": "Ana logo zorunlu. Varyantlar isteğe bağlıdır.",
     "logoVariantsHint": "Aynı logonun ayrı dosyaları. Hepsi isteğe bağlı.",
     "logoLight": "Açık zemin",

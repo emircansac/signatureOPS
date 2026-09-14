@@ -106,6 +106,7 @@ describe("TemplateDefinition", () => {
     const certs = parsed.blocks[1];
     const banner = parsed.blocks[2];
     expect(logo?.type === "company_logo" && logo.logoVariant).toBe("default");
+    expect(logo?.type === "company_logo" && logo.logoSize).toBe("small");
     expect(certs?.type === "certifications" && certs.assetIds).toEqual([]);
     expect(certs?.type === "certifications" && certs.migrationWarning).toMatch(/yeniden seçin/);
     expect(banner?.type === "campaign_banner" && banner.assetId).toBe("banner-1");

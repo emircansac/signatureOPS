@@ -11,8 +11,8 @@ describe("processUploadImage", () => {
       .toBuffer();
 
     const result = await processUploadImage(buffer, "image/png", "logo");
-    expect(result.displayWidth).toBe(120);
-    expect(result.displayHeight).toBe(30);
+    expect(result.displayWidth).toBe(180);
+    expect(result.displayHeight).toBe(45);
     expect(result.mime).toBe("image/png");
     expect(result.buffer.equals(buffer)).toBe(true);
   });
@@ -25,8 +25,8 @@ describe("processUploadImage", () => {
       .toBuffer();
 
     const result = await processUploadImage(buffer, "image/png", "logo");
-    expect(result.displayWidth).toBe(120);
-    expect(result.displayHeight).toBe(24);
+    expect(result.displayWidth).toBe(180);
+    expect(result.displayHeight).toBe(36);
     expect(result.mime).toBe("image/png");
 
     const meta = await sharp(result.buffer).metadata();

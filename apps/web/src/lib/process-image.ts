@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import { displayBoxForSlot, fitInsideBox } from "@signatureops/compiler";
+import { storageDisplayBoxForSlot, fitInsideBox } from "@signatureops/compiler";
 
 /** Extra pixels kept in the file so HiDPI clients stay sharp. HTML width/height stay 1×. */
 export const STORE_PIXEL_DENSITY = 3;
@@ -31,7 +31,7 @@ export async function processUploadImage(
   const meta = await sharp(buffer, { animated: false, pages: 1, failOn: "none" }).metadata();
   const srcW = meta.width ?? 0;
   const srcH = meta.height ?? 0;
-  const box = displayBoxForSlot(slot);
+  const box = storageDisplayBoxForSlot(slot);
   const display = fitInsideBox(srcW || box.width, srcH || box.height, box.width, box.height);
 
   const maxPixelW = display.width * STORE_PIXEL_DENSITY;

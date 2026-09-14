@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayBoxForSlot, fitInsideBox, fittedDisplaySize } from "./display-fit.js";
+import { displayBoxForSlot, fitInsideBox, fittedDisplaySize, fittedLogoSize, storageDisplayBoxForSlot } from "./display-fit.js";
 
 describe("fitInsideBox", () => {
   it("scales a wide image down to the logo box", () => {
@@ -35,5 +35,26 @@ describe("fittedDisplaySize", () => {
 
   it("returns the box when dimensions are absent", () => {
     expect(fittedDisplaySize("logo")).toEqual({ width: 120, height: 40 });
+  });
+});
+
+describe("fittedLogoSize", () => {
+  it("keeps the small box without upscaling", () => {
+    expect(fittedLogoSize("small", false, 80, 20)).toEqual({ width: 80, height: 20 });
+    expect(fittedLogoSize("small", false, 2000, 400)).toEqual({ width: 120, height: 24 });
+  });
+
+  it("fills the large box and may upscale a stored small fit", () => {
+    expect(fittedLogoSize("large", false, 2000, 400)).toEqual({ width: 180, height: 36 });
+    expect(fittedLogoSize("large", false, 120, 24)).toEqual({ width: 180, height: 36 });
+    expect(fittedLogoSize("large", true, 40, 40)).toEqual({ width: 60, height: 60 });
+  });
+});
+
+describe("storageDisplayBoxForSlot", () => {
+  it("stores enough pixels for the large signature size", () => {
+    expect(storageDisplayBoxForSlot("logo")).toEqual({ width: 180, height: 60 });
+    expect(storageDisplayBoxForSlot("logo_mark")).toEqual({ width: 60, height: 60 });
+    expect(storageDisplayBoxForSlot("banner")).toEqual({ width: 400, height: 80 });
   });
 });

@@ -176,6 +176,12 @@
       "dark": "On dark",
       "mark": "Mark only"
     },
+    "logoSize": "Logo size",
+    "logoSizes": {
+      "small": "Small",
+      "large": "Large"
+    },
+    "logoSizeHint": "Small is at most 120×40, large 180×60 px (mark 40×40 / 60×60).",
     "emptyPalette": "No colors are defined on the Identity page yet; the default brand token will be used.",
     "defaultTokenColor": "Default",
     "ctaColor": "Button color",
@@ -228,6 +234,7 @@
     "uploadAction": "Upload",
     "previewTitle": "Preview",
     "displaySizeHint": "Shown at most {width}×{height} px in the signature. A sharper, higher-resolution file is stored.",
+    "logoDisplaySizeHint": "Templates can use small ({smallW}×{smallH}) or large ({largeW}×{largeH}). The file is stored sharp enough for the large size.",
     "uploadFailed": "Upload failed",
     "deleteForbidden": "Only a super admin can delete this image.",
     "search": "Search images",
@@ -264,7 +271,7 @@
     "legalDisclaimer": "Legal notice",
     "legalDisclaimerHint": "Optional. New legal notice blocks use this text.",
     "logo": "Logo",
-    "logoHint": "The default logo in templates. Shown at most 120×40 px in the signature.",
+    "logoHint": "The default logo in templates. Choose small (120×40) or large (180×60) on the template.",
     "logoRequiredHint": "The main logo is required. Variants are optional.",
     "logoVariantsHint": "Separate files of the same logo. All optional.",
     "logoLight": "On light",

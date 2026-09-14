@@ -10,6 +10,9 @@ const ColumnFieldSchema = TemplateColumnSchema.optional();
 export const LogoVariantSchema = z.enum(["default", "light", "dark", "mark"]);
 export type LogoVariant = z.infer<typeof LogoVariantSchema>;
 
+export const LogoSizeSchema = z.enum(["small", "large"]);
+export type LogoSize = z.infer<typeof LogoSizeSchema>;
+
 export const SOCIAL_PLATFORM_IDS = [
   "linkedin",
   "x",
@@ -44,6 +47,7 @@ export const CompanyLogoBlockSchema = z.object({
   type: z.literal("company_logo"),
   assetId: z.string().default(""),
   logoVariant: LogoVariantSchema.default("default"),
+  logoSize: LogoSizeSchema.default("small"),
   visibleWhen: VisibleWhenSchema,
   migrationWarning: MigrationWarningSchema,
   column: ColumnFieldSchema,
@@ -204,6 +208,7 @@ function coerceBlock(input: unknown): unknown {
   if (type === "company_logo") {
     if (typeof block.assetId !== "string") block.assetId = "";
     if (!block.logoVariant) block.logoVariant = "default";
+    if (!block.logoSize) block.logoSize = "small";
     if (leftover && !block.assetId) {
       block.migrationWarning =
         typeof block.migrationWarning === "string" ? block.migrationWarning : unresolvedWarning(leftover);

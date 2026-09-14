@@ -238,6 +238,27 @@ describe("compile", () => {
     expect(result.html).not.toContain('width="2000"');
   });
 
+  it("renders large logos in the 180×60 box", () => {
+    const definition = parseTemplateDefinition({
+      layout: "single-column",
+      blocks: [{ type: "company_logo", assetId: "huge", logoSize: "large" }],
+    });
+    const result = compile(definition, {
+      ...baseContext,
+      assets: {
+        huge: {
+          id: "huge",
+          url: "https://cdn.acme.com/huge.png",
+          width: 2000,
+          height: 400,
+          alt: "Huge",
+        },
+      },
+    });
+    expect(result.html).toContain('width="180"');
+    expect(result.html).toContain('height="36"');
+  });
+
   it("clamps oversized banners to 400×80", () => {
     const definition = parseTemplateDefinition({
       layout: "single-column",

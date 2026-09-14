@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 const IDENTITY_FIELDS = ["displayName", "jobTitle", "department", "country"] as const;
 const CONTACT_FIELDS = ["email", "mobile", "officePhone"] as const;
 const LOGO_VARIANTS = ["default", "light", "dark", "mark"] as const;
+const LOGO_SIZES = ["small", "large"] as const;
 
 function assetMissing(assetId: string | undefined, ids: Set<string>): boolean {
   return Boolean(assetId) && !ids.has(assetId!);
@@ -51,6 +52,25 @@ export function BlockConfig({
             missing={missing}
             onChange={(assetId) => update({ ...block, assetId, migrationWarning: undefined })}
           />
+          <div>
+            <Label>{t("logoSize")}</Label>
+            <div className="mt-1 flex flex-wrap border border-rule">
+              {LOGO_SIZES.map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => update({ ...block, logoSize: size })}
+                  className={cn(
+                    "flex-1 px-2 py-1.5 text-xs",
+                    (block.logoSize ?? "small") === size ? "bg-ink text-paper" : "text-lead hover:text-ink",
+                  )}
+                >
+                  {t(`logoSizes.${size}`)}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-lead">{t("logoSizeHint")}</p>
+          </div>
           <div>
             <Label>{t("logoVariant")}</Label>
             <div className="mt-1 flex flex-wrap border border-rule">

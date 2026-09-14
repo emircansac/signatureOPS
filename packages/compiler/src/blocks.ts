@@ -16,7 +16,7 @@ import {
   resolvePlaceholders,
 } from "@signatureops/schema";
 import { escapeHtml } from "./escape.js";
-import { fittedDisplaySize } from "./display-fit.js";
+import { fittedDisplaySize, fittedLogoSize } from "./display-fit.js";
 
 const FIELD_MAP: Record<string, string> = {
   displayName: "user.displayName",
@@ -209,7 +209,12 @@ function renderLogo(
   const asset = resolveLogoAsset(block, context);
   if (!asset) return "";
   const slot = block.logoVariant === "mark" ? "logo_mark" : "logo";
-  const { width, height } = fittedDisplaySize(slot, asset.width, asset.height);
+  const { width, height } = fittedLogoSize(
+    block.logoSize ?? "small",
+    slot === "logo_mark",
+    asset.width,
+    asset.height,
+  );
   const padding = opts.centered ? "0 0 8px 0" : "0 12px 8px 0";
   return `<td style="${tdAlign(opts)}padding:${padding};">${renderImg(asset, "Company logo", width, height, "", opts)}</td>`;
 }

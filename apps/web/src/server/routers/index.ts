@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fittedDisplaySize } from "@signatureops/compiler";
+import { fittedStorageSize } from "@signatureops/compiler";
 import {
   collectTemplateAssetIds,
   parseTemplateDefinition,
@@ -834,7 +834,7 @@ export const assetsRouter = router({
       const orgId = await getOrgId(ctx);
       assertAssetUrl(input.url);
       const kind = kindForSlot(input.slot as IdentitySlot);
-      const display = fittedDisplaySize(input.slot, input.width, input.height);
+      const display = fittedStorageSize(input.slot, input.width, input.height);
       const data = {
         kind,
         url: input.url,

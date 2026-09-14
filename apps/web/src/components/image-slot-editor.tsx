@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { displayBoxForSlot } from "@signatureops/compiler/display-fit";
+import { displayBoxForSlot, logoDisplayBox } from "@signatureops/compiler/display-fit";
 import { trpc } from "@/lib/trpc";
 import { brandMediaPath } from "@/lib/media-url";
 import { readImageSize, uploadImageFile } from "@/lib/upload-image";
@@ -51,7 +51,18 @@ export function ImageSlotEditor({
   const tc = useTranslations("common");
   const utils = trpc.useUtils();
   const fileRef = useRef<HTMLInputElement>(null);
+  const isLogoSlot = slot.startsWith("logo");
   const box = displayBoxForSlot(slot);
+  const smallLogo = logoDisplayBox("small", slot === "logo_mark");
+  const largeLogo = logoDisplayBox("large", slot === "logo_mark");
+  const sizeHint = isLogoSlot
+    ? ta("logoDisplaySizeHint", {
+        smallW: smallLogo.width,
+        smallH: smallLogo.height,
+        largeW: largeLogo.width,
+        largeH: largeLogo.height,
+      })
+    : ta("displaySizeHint", { width: box.width, height: box.height });
 
   const [replacing, setReplacing] = useState(!asset);
   const [source, setSource] = useState<Source>("file");
@@ -202,7 +213,6 @@ export function ImageSlotEditor({
   ];
   const inUse = usageNames.length > 0;
   const currentSrc = asset ? brandMediaPath(asset.id) : "";
-  const sizeHint = ta("displaySizeHint", { width: box.width, height: box.height });
 
   return (
     <div className={cn("space-y-3", compact && "space-y-2")}>

@@ -1,3 +1,5 @@
+import type { NextRequest } from "next/server";
+
 import { handlers } from "@/auth";
 
 export const dynamic = "force-dynamic";
@@ -12,10 +14,10 @@ function withoutStore(response: Response): Response {
   return response;
 }
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   return withoutStore(await handlers.GET(request));
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   return withoutStore(await handlers.POST(request));
 }
