@@ -294,6 +294,9 @@ export function BlockConfig({
       return (
         <div className="mt-2 border-t border-rule pt-2">
           <p className="text-sm text-lead">{t("orgIntroHint")}</p>
+          {!identity?.intro?.trim() ? (
+            <p className="mt-1 text-sm text-seal">{t("orgIntroEmpty")}</p>
+          ) : null}
         </div>
       );
 

@@ -19,6 +19,7 @@ export default function TemplateEditPage({
   const updateMutation = trpc.templates.update.useMutation({
     onSuccess: () => {
       utils.templates.list.invalidate();
+      utils.templates.listCompiled.invalidate();
       utils.templates.get.invalidate({ id });
     },
   });

@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { compile, fittedDisplaySize } from "@signatureops/compiler";
-import { lintHtml } from "@signatureops/linter";
+import { fittedDisplaySize } from "@signatureops/compiler";
 import {
   collectTemplateAssetIds,
   parseTemplateDefinition,
@@ -9,21 +8,13 @@ import {
   TemplateDefinitionSchema,
   normalizeStoredCountry,
   normalizeStoredPhone,
-  type TemplateDefinition,
 } from "@signatureops/schema";
 import { onboardingProcedure, protectedProcedure, publicProcedure, signedInProcedure, superAdminProcedure, router, type TRPCContext } from "../trpc";
-import { type AssetRecord } from "../lib/assets";
 import { isAllowedAssetUrl } from "@/lib/asset-url";
-import { brandMediaUrl } from "@/lib/media-url";
 import { connectionsRouter, deployRouter, invitesRouter } from "./ops";
 import { hashToken } from "@/lib/crypto-token";
-import { buildCampaignMap, compileUserSignature, parseJson } from "../lib/compile-user-signature";
-import { appBaseUrl } from "@/env";
-import {
-  buildCompileContext,
-  hasLegalDisclaimerText,
-  logoResolved,
-} from "../lib/compile-context";
+import { compileUserSignature, parseJson } from "../lib/compile-user-signature";
+import { compileTemplatePreview } from "../lib/compile-template-preview";
 import { isReservedSlug, SlugSchema, slugify } from "@/lib/slug";
 import { isOrgIntroComplete, isPersonTitleComplete } from "@/lib/onboarding";
 import {
@@ -36,7 +27,6 @@ import {
   CampaignInputSchema,
   CampaignUpdateSchema,
   campaignStatus,
-  findActiveCampaignForTemplate,
   fromCampaignDate,
   overlappingCampaign,
   parseTemplateIds,
@@ -56,10 +46,6 @@ import { TRPCError } from "@trpc/server";
 async function getOrgId(ctx: { orgId: string | null }) {
   if (!ctx.orgId) throw new Error("No organization found");
   return ctx.orgId;
-}
-
-function getBaseUrl() {
-  return appBaseUrl();
 }
 
 function assetIdsInTemplate(definition: string): string[] {
@@ -288,6 +274,27 @@ export const usersRouter = router({
     }),
 });
 
+function namesUsingTemplate(
+  templateId: string,
+  rules: { name: string; actions: string }[],
+  campaigns: { name: string; templateIds: string }[],
+): { rules: string[]; campaigns: string[] } {
+  const ruleNames = rules.flatMap((rule) => {
+    try {
+      const actions = parseJson<Array<{ type?: string; templateId?: string }>>(rule.actions);
+      return actions.some((action) => action.type === "select_template" && action.templateId === templateId)
+        ? [rule.name]
+        : [];
+    } catch {
+      return [];
+    }
+  });
+  const campaignNames = campaigns
+    .filter((campaign) => parseTemplateIds(campaign.templateIds).includes(templateId))
+    .map((campaign) => campaign.name);
+  return { rules: ruleNames, campaigns: campaignNames };
+}
+
 export const templatesRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {
     const orgId = await getOrgId(ctx);
@@ -344,6 +351,56 @@ export const templatesRouter = router({
         },
       });
     }),
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await getOrgId(ctx);
+      const existing = await ctx.prisma.template.findFirst({
+        where: { id: input.id, orgId },
+      });
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+      await ctx.prisma.template.delete({ where: { id: input.id } });
+      return { id: input.id };
+    }),
+  listCompiled: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = await getOrgId(ctx);
+    const [templates, users, org, assets, campaigns, rules] = await Promise.all([
+      ctx.prisma.template.findMany({ where: { orgId }, orderBy: { updatedAt: "desc" } }),
+      ctx.prisma.user.findMany({ where: { orgId }, orderBy: { displayName: "asc" } }),
+      ctx.prisma.organization.findUnique({ where: { id: orgId } }),
+      ctx.prisma.brandAsset.findMany({ where: { orgId } }),
+      ctx.prisma.campaign.findMany({ where: { orgId } }),
+      ctx.prisma.rule.findMany({ where: { orgId }, select: { name: true, actions: true } }),
+    ]);
+    if (!org) throw new TRPCError({ code: "NOT_FOUND" });
+
+    const previewUser = users[0];
+    return templates.map((template) => {
+      const usedIn = namesUsingTemplate(template.id, rules, campaigns);
+      let html = "";
+      if (previewUser) {
+        try {
+          const definition = parseTemplateDefinition(JSON.parse(template.definition));
+          html = compileTemplatePreview({
+            definition,
+            user: previewUser,
+            org,
+            assets,
+            campaigns,
+            templateId: template.id,
+          }).html;
+        } catch {
+          html = "";
+        }
+      }
+      return {
+        id: template.id,
+        name: template.name,
+        html,
+        usedIn,
+      };
+    });
+  }),
   compilePreview: protectedProcedure
     .input(
       z.object({
@@ -363,40 +420,14 @@ export const templatesRouter = router({
 
       if (!user || !org) throw new Error("User or org not found");
 
-      const campaignMap = buildCampaignMap(campaigns, assets as AssetRecord[], input.definition);
-      const active = findActiveCampaignForTemplate(campaigns, input.templateId);
-      const fallbackPhoto = assets.find((asset) => asset.slot === "profile_fallback");
-      const compileContext = buildCompileContext({
-        user: {
-          user: {
-            displayName: user.displayName,
-            jobTitle: user.jobTitle ?? undefined,
-            department: user.department ?? undefined,
-            country: user.country ?? undefined,
-            email: user.email,
-            mobile: user.mobile ?? undefined,
-            officePhone: user.officePhone ?? undefined,
-            photoUrl: user.photoUrl ?? undefined,
-          },
-          organization: { name: org.name },
-        },
-        assets: assets as AssetRecord[],
-        campaigns: campaignMap,
+      return compileTemplatePreview({
+        definition: input.definition,
+        user,
         org,
-        fallbackPhotoUrl: fallbackPhoto ? brandMediaUrl(fallbackPhoto.id, getBaseUrl()) : undefined,
-        baseUrl: getBaseUrl(),
-        activeCampaignId: active?.id,
+        assets,
+        campaigns,
+        templateId: input.templateId,
       });
-
-      const compiled = compile(input.definition, compileContext);
-      const approvedLogoFound = logoResolved(input.definition, compileContext);
-      const linted = lintHtml(compiled.html, {
-        requiredDisclaimer: true,
-        hasLegalDisclaimerText: hasLegalDisclaimerText(input.definition),
-        ...(approvedLogoFound === undefined ? {} : { approvedLogoFound }),
-      });
-
-      return { ...compiled, lint: linted };
     }),
 });
 

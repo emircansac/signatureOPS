@@ -7,20 +7,22 @@ import { assignMissingColumns, blockColumn, defaultBlockColumn, defaultStackedCo
 import { trpc } from "@/lib/trpc";
 import { BlockConfig } from "@/components/block-config";
 import { EmailComposePreview } from "@/components/email-compose-preview";
+import { SavedSignatureStrips } from "@/components/saved-signature-strips";
 import { copySignatureHtml } from "@/lib/copy-signature";
 import { LintScoreBar } from "@/components/lint-score-bar";
 import { Button, Card, Input, Label, Select } from "@/components/ui";
+import { cn } from "@/lib/utils";
 
 const BLOCK_TYPES = [
   "identity",
   "contact_details",
   "company_logo",
+  "org_intro",
   "profile_photo",
   "social_links",
   "cta_button",
   "campaign_banner",
   "legal_disclaimer",
-  "org_intro",
   "certifications",
   "custom_text",
   "spacer",
@@ -99,6 +101,7 @@ export function TemplateEditor({
   const { data: identity } = trpc.identity.get.useQuery();
   const [previewUserId, setPreviewUserId] = useState<string>("");
   const [copied, setCopied] = useState<"rich" | "source" | false>(false);
+  const [rightTab, setRightTab] = useState<"preview" | "saved">("preview");
 
   const { data: preview, refetch: refetchPreview } = trpc.templates.compilePreview.useQuery(
     { definition, userId: previewUserId || users?.[0]?.id || "", templateId },
@@ -188,28 +191,49 @@ export function TemplateEditor({
       .filter(({ block }) =>
         column ? blockColumn(block, definition.layout) === column : true,
       );
+    const isBelow = column === "below";
+    const hasIntroBelow = definition.blocks.some(
+      (block) => block.type === "org_intro" && blockColumn(block, definition.layout) === "below",
+    );
 
     return (
-      <div>
-        <div className="mb-2 flex items-center justify-between gap-2">
+      <div className={cn(isBelow && "border border-dashed border-rule p-3")}>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <Label>
-            {column === 1 ? t("column1") : column === 2 ? t("column2") : column === "below" ? t("belowColumns") : t("blocks")}
+            {column === 1
+              ? t("column1")
+              : column === 2
+                ? t("column2")
+                : isBelow
+                  ? t("belowColumns")
+                  : t("blocks")}
           </Label>
-          <Select
-            defaultValue=""
-            onChange={(e) => {
-              if (e.target.value) addBlock(e.target.value as (typeof BLOCK_TYPES)[number], column);
-              e.target.value = "";
-            }}
-          >
-            <option value="">{t("addBlock")}</option>
-            {BLOCK_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {tb(type)}
-              </option>
-            ))}
-          </Select>
+          <div className="flex flex-wrap items-center gap-2">
+            {isBelow && !hasIntroBelow ? (
+              <Button type="button" variant="secondary" onClick={() => addBlock("org_intro", "below")}>
+                {t("addIntro")}
+              </Button>
+            ) : null}
+            <Select
+              defaultValue=""
+              className="w-auto min-w-[9rem]"
+              onChange={(e) => {
+                if (e.target.value) addBlock(e.target.value as (typeof BLOCK_TYPES)[number], column);
+                e.target.value = "";
+              }}
+            >
+              <option value="">{t("addBlock")}</option>
+              {BLOCK_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {tb(type)}
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
+        {isBelow && items.length === 0 ? (
+          <p className="mb-2 text-sm text-lead">{t("belowColumnsHint")}</p>
+        ) : null}
         <div className="space-y-2">
           {items.map(({ block, index }) => (
             <Card
@@ -319,54 +343,86 @@ export function TemplateEditor({
             renderBlockList()
           )}
 
-          <Button onClick={() => onSave({ name, definition })} disabled={saving}>
+          <Button type="button" onClick={() => onSave({ name, definition })} disabled={saving}>
             {saving ? "..." : tc("save")}
           </Button>
         </div>
 
         <div className="space-y-4">
-          <div>
-            <Label>{t("previewUser")}</Label>
-            <Select
-              value={previewUserId || users?.[0]?.id || ""}
-              onChange={(e) => setPreviewUserId(e.target.value)}
-            >
-              {users?.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.displayName}
-                </option>
-              ))}
-            </Select>
-            <Button variant="secondary" className="mt-2" onClick={() => refetchPreview()}>
-              {tc("preview")}
-            </Button>
-            {preview?.html && (
-              <>
-                <Button variant="secondary" className="mt-2 ml-2" onClick={() => void copyHtml("rich")}>
-                  {copied === "rich" ? tc("copied") : t("copyForGmail")}
-                </Button>
-                <Button variant="secondary" className="mt-2 ml-2" onClick={() => void copyHtml("source")}>
-                  {copied === "source" ? tc("copied") : t("copyHtmlSource")}
-                </Button>
-                <p className="mt-2 text-xs text-lead">{t("copyForGmailHint")}</p>
-              </>
-            )}
+          <div className="flex border-b border-rule">
+            {(["preview", "saved"] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setRightTab(tab)}
+                className={cn(
+                  "-mb-px border-b px-3 py-1.5 text-sm",
+                  rightTab === tab ? "border-ink text-ink" : "border-transparent text-lead hover:text-ink",
+                )}
+              >
+                {tab === "preview" ? t("previewTab") : t("savedTab")}
+              </button>
+            ))}
           </div>
 
-          <EmailComposePreview
-            html={preview?.html}
-            fromName={users?.find((u) => u.id === (previewUserId || users?.[0]?.id))?.displayName}
-          />
+          {rightTab === "saved" ? (
+            <SavedSignatureStrips currentTemplateId={templateId} />
+          ) : (
+            <>
+              <div>
+                <Label>{t("previewUser")}</Label>
+                <Select
+                  value={previewUserId || users?.[0]?.id || ""}
+                  onChange={(e) => setPreviewUserId(e.target.value)}
+                >
+                  {users?.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.displayName}
+                    </option>
+                  ))}
+                </Select>
+                <Button type="button" variant="secondary" className="mt-2" onClick={() => refetchPreview()}>
+                  {tc("preview")}
+                </Button>
+                {preview?.html && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="mt-2 ml-2"
+                      onClick={() => void copyHtml("rich")}
+                    >
+                      {copied === "rich" ? tc("copied") : t("copyForGmail")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="mt-2 ml-2"
+                      onClick={() => void copyHtml("source")}
+                    >
+                      {copied === "source" ? tc("copied") : t("copyHtmlSource")}
+                    </Button>
+                    <p className="mt-2 text-xs text-lead">{t("copyForGmailHint")}</p>
+                  </>
+                )}
+              </div>
 
-          {preview && (
-            <Card>
-              <LintScoreBar
-                score={preview.lint.score}
-                passed={preview.lint.passed}
-                breakdown={preview.lint.breakdown}
-                issues={preview.lint.issues}
+              <EmailComposePreview
+                html={preview?.html}
+                fromName={users?.find((u) => u.id === (previewUserId || users?.[0]?.id))?.displayName}
               />
-            </Card>
+
+              {preview && (
+                <Card>
+                  <LintScoreBar
+                    score={preview.lint.score}
+                    passed={preview.lint.passed}
+                    breakdown={preview.lint.breakdown}
+                    issues={preview.lint.issues}
+                  />
+                </Card>
+              )}
+            </>
           )}
         </div>
       </div>
