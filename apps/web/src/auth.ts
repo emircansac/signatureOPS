@@ -4,6 +4,7 @@ import type { JWT } from "next-auth/jwt";
 import { prisma } from "@signatureops/db";
 import { authConfig } from "./auth.config";
 import { isAuthBypassed } from "@/lib/auth-bypass";
+import { joinMatchingOrg } from "@/server/lib/join-org";
 
 async function attachOrg(token: JWT): Promise<JWT> {
   const googleSub = typeof token.googleSub === "string" ? token.googleSub : undefined;
@@ -11,20 +12,13 @@ async function attachOrg(token: JWT): Promise<JWT> {
   if (!googleSub && !email) return token;
 
   try {
-    const admin = await prisma.adminUser.findFirst({
-      where: {
-        OR: [...(googleSub ? [{ googleSub }] : []), ...(email ? [{ email }] : [])],
-      },
-      select: {
-        id: true,
-        orgId: true,
-        role: true,
-        googleSub: true,
-        org: { select: { slug: true, name: true } },
-      },
+    const joined = await joinMatchingOrg(prisma, {
+      email,
+      googleSub,
+      name: typeof token.name === "string" ? token.name : null,
     });
 
-    if (!admin) {
+    if (!joined) {
       token.adminUserId = null;
       token.orgId = null;
       token.orgSlug = null;
@@ -33,18 +27,11 @@ async function attachOrg(token: JWT): Promise<JWT> {
       return token;
     }
 
-    if (googleSub && admin.googleSub !== googleSub) {
-      await prisma.adminUser.update({
-        where: { id: admin.id },
-        data: { googleSub },
-      });
-    }
-
-    token.adminUserId = admin.id;
-    token.orgId = admin.orgId;
-    token.orgSlug = admin.org.slug;
-    token.orgName = admin.org.name;
-    token.role = admin.role;
+    token.adminUserId = joined.adminId;
+    token.orgId = joined.orgId;
+    token.orgSlug = joined.slug;
+    token.orgName = joined.name;
+    token.role = joined.role;
     return token;
   } catch (error) {
     console.error("attachOrg failed", error);

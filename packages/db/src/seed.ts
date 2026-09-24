@@ -57,6 +57,7 @@ async function main() {
     data: {
       name: "Acme Corp",
       slug: "acme",
+      joinDomain: "acme.com",
       intro: "Kurumsal yazılım ve e-posta imza yönetimi.",
       legalDisclaimer: "Bu e-posta gizlidir. {{organization.name}}",
       brandColors: JSON.stringify([

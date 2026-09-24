@@ -214,6 +214,7 @@ export function PersonForm({
               required
             />
             <p className="mt-1 text-xs text-lead">{t("emailHint")}</p>
+            <p className="mt-1 text-xs text-lead">{t("emailJoinHint")}</p>
           </div>
           <div>
             <Label htmlFor="person-country">{t("country")}</Label>

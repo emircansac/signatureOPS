@@ -40,10 +40,10 @@
       "rules": "Kime hangi imzanın gideceğini belirle",
       "simulate": "Kural sonucunu test et ve önizle",
       "assets": "Logo, renkler ve imza görselleri",
-      "directory": "Çalışanların ünvan, telefon ve fotoğrafı",
+      "directory": "Giriş gerekmeden kişi ekleyin; imza dizinden üretilir",
       "campaigns": "Tarih aralıklı banner kampanyaları",
       "deploy": "Gmail dağıtım sağlığı ve dizin senkronu",
-      "settings": "Workspace bağlantısı, add-in manifestleri, yönetici daveti"
+      "settings": "Workspace bağlantısı, aynı uzantıyla katılım, yönetici daveti"
     }
   },
   "dashboard": {
@@ -88,7 +88,7 @@
       },
       "addPerson": {
         "title": "Yeni Kişi Ekle",
-        "desc": "Dizine ad, pozisyon ve iletişim bilgisi ekleyin"
+        "desc": "Ekip arkadaşını giriş yapmadan dizine ekleyin"
       },
       "startCampaign": {
         "title": "Kampanya Başlat",
@@ -413,8 +413,8 @@
   },
   "directory": {
     "title": "Dizin",
-    "subtitle": "Kişiye özel alanlar — ünvan, mobil, fotoğraf. Elle ekleyin, dosyadan içe aktarın veya Google / Microsoft senkronu kullanın.",
-    "personFieldsHint": "Bu değerler Kimlik’ten değil, çalışanın dizin kaydından gelir. Profil fotoğrafı kişiye özeldir; fotoğrafı yoksa imzada Kimlik’teki varsayılan marka görseli kullanılır.",
+    "subtitle": "Kişiye özel alanlar — ünvan, mobil, fotoğraf. Ekip arkadaşının panele girmesine gerek yok; kişiyi ekleyin, imza şablon ve kurallardan üretilir.",
+    "personFieldsHint": "Bu değerler Kimlik’ten değil, çalışanın dizin kaydından gelir. Profil fotoğrafı kişiye özeldir; fotoğrafı yoksa imzada Kimlik’teki varsayılan marka görseli kullanılır. Aynı şirket e-posta uzantısıyla giriş yaparlarsa bu workspace’e otomatik katılırlar.",
     "syncDisabled": "Dizin senkronu Ayarlar’daki Workspace / Entra bağlantısını gerektirir",
     "syncGoogle": "Google senkronu",
     "syncMicrosoft": "Microsoft senkronu",
@@ -428,6 +428,7 @@
     "mobileHint": "Ülke kodu yazmayın. Şablonda seçilen ülkenin kodu (Türkiye için +90) numaranın yanına eklenir.",
     "email": "E-posta",
     "emailHint": "Yalnızca İngilizce karakter (A–Z, 0–9). ğ, ü, ş, ı, ö, ç kullanılamaz.",
+    "emailJoinHint": "Bu kişi panele girmek zorunda değil. Aynı şirket uzantısıyla giriş yaparsa workspace’e bağlanır.",
     "department": "Departman",
     "country": "Ülke",
     "countryPlaceholder": "Ülke seçin",
@@ -610,7 +611,10 @@
     "goToPanel": "İmza paneline git",
     "finishSetup": "Kurumu oluştur",
     "onboardingTitle": "Kurumunuzu oluşturun",
-    "onboardingHint": "İmza paneli adresiniz bu kısa addan oluşacak.",
+    "onboardingHint": "İmza paneli adresiniz bu kısa addan oluşacak. Aynı şirket e-posta uzantısıyla giren ekip arkadaşlarınız bu workspace’e bağlanır.",
+    "joinTitle": "Mevcut workspace’e katılın",
+    "joinHint": "{domain} uzantılı e-postanız {org} workspace’ine bağlanacak.",
+    "joinOrg": "Workspace’e katıl",
     "orgName": "Kurum adı",
     "orgIntro": "Kısa tanıtım",
     "orgIntroHint": "Kurumu bir-iki cümleyle anlatın. Kimlik sayfasından sonra da düzenlenebilir.",
@@ -642,7 +646,10 @@
   },
   "settings": {
     "title": "Ayarlar",
-    "subtitle": "Workspace bağlantısı, Outlook add-in ve yönetici davetleri",
+    "subtitle": "Aynı e-posta uzantısıyla katılım, Workspace bağlantısı, Outlook add-in ve yönetici davetleri",
+    "joinTitle": "Ekip katılımı",
+    "joinHint": "@{domain} uzantısıyla giriş yapan kişiler bu workspace’e otomatik bağlanır. İmza için kişiyi Dizine eklemeniz yeterlidir; panele girmeleri gerekmez. Farklı uzantılı yöneticiler için aşağıdan davet gönderin.",
+    "joinPublicHint": "Kurucu genel bir e-posta (Gmail, Outlook vb.) kullandığı için otomatik katılım kapalı. İmza için kişiyi Dizine ekleyin — panele girmeleri gerekmez. Yönetici eklemek için davet gönderin.",
     "googleTitle": "Google Workspace",
     "googleHint": "Workspace yöneticisi, aşağıdaki servis hesabı istemci kimliğini Domain-wide delegation’a listedeki kapsamlarla eklemelidir. Sonra taklit edilecek yönetici e-postasını kaydedin.",
     "workspaceDomain": "Birincil alan adı",

@@ -35,6 +35,17 @@ export default function SettingsPage() {
       <PageHeading title={t("title")} subtitle={t("subtitle")} />
 
       <Card>
+        <h2 className="text-sm font-medium">{t("joinTitle")}</h2>
+        {data.joinDomain ? (
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-lead">
+            {t("joinHint", { domain: data.joinDomain })}
+          </p>
+        ) : (
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-lead">{t("joinPublicHint")}</p>
+        )}
+      </Card>
+
+      <Card>
         <h2 className="text-sm font-medium">{t("googleTitle")}</h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-lead">{t("googleHint")}</p>
         <form

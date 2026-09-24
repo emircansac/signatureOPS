@@ -17,6 +17,7 @@ export const connectionsRouter = router({
     const org = await ctx.prisma.organization.findUnique({
       where: { id: ctx.orgId! },
       select: {
+        joinDomain: true,
         googleWorkspaceDomain: true,
         googleImpersonateEmail: true,
         microsoftTenantId: true,
@@ -25,6 +26,7 @@ export const connectionsRouter = router({
     });
     const env = getServerEnv();
     return {
+      joinDomain: org?.joinDomain ?? "",
       googleWorkspaceDomain: org?.googleWorkspaceDomain ?? "",
       googleImpersonateEmail: org?.googleImpersonateEmail ?? "",
       microsoftTenantId: org?.microsoftTenantId ?? "",

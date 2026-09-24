@@ -14,6 +14,8 @@ import { isAllowedAssetUrl } from "@/lib/asset-url";
 import { probeImagePixelSize } from "@/lib/process-image";
 import { connectionsRouter, deployRouter, invitesRouter } from "./ops";
 import { hashToken } from "@/lib/crypto-token";
+import { joinableEmailDomain, normalizeEmail } from "@/lib/email-domain";
+import { findMatchingJoinOrg, joinMatchingOrg } from "../lib/join-org";
 import { compileUserSignature, parseJson } from "../lib/compile-user-signature";
 import { compileTemplatePreview } from "../lib/compile-template-preview";
 import { isReservedSlug, SlugSchema, slugify } from "@/lib/slug";
@@ -933,6 +935,29 @@ export const simulateRouter = router({
 });
 
 export const authRouter = router({
+  matchingOrg: signedInProcedure.query(async ({ ctx }) => {
+    if (ctx.session?.orgId) return { match: null };
+    const email = ctx.session?.email;
+    if (!email) return { match: null };
+    const match = await findMatchingJoinOrg(ctx.prisma, email);
+    if (!match) return { match: null };
+    return { match: { name: match.name, slug: match.slug, domain: match.domain } };
+  }),
+  joinMatchingOrg: onboardingProcedure.mutation(async ({ ctx }) => {
+    const email = ctx.session?.email;
+    if (!email) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Google account has no email" });
+    }
+    const joined = await joinMatchingOrg(ctx.prisma, {
+      email,
+      googleSub: ctx.session?.googleSub,
+      name: ctx.session?.name,
+    });
+    if (!joined) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "NO_MATCHING_ORG" });
+    }
+    return { orgId: joined.orgId, slug: joined.slug, name: joined.name };
+  }),
   createOrg: onboardingProcedure
     .input(
       z.object({
@@ -949,21 +974,13 @@ export const authRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "Google account has no email" });
       }
 
-      const existingAdmin = await ctx.prisma.adminUser.findFirst({
-        where: {
-          OR: [
-            ...(session.googleSub ? [{ googleSub: session.googleSub }] : []),
-            { email },
-          ],
-        },
-        include: { org: true },
+      const joined = await joinMatchingOrg(ctx.prisma, {
+        email,
+        googleSub: session.googleSub,
+        name: session.name,
       });
-      if (existingAdmin) {
-        return {
-          orgId: existingAdmin.org.id,
-          slug: existingAdmin.org.slug,
-          name: existingAdmin.org.name,
-        };
+      if (joined) {
+        return { orgId: joined.orgId, slug: joined.slug, name: joined.name };
       }
 
       const slug = slugify(input.slug);
@@ -978,24 +995,40 @@ export const authRouter = router({
         throw new TRPCError({ code: "CONFLICT", message: "Slug already in use" });
       }
 
-      const org = await ctx.prisma.organization.create({
-        data: {
-          name: input.name.trim(),
-          slug,
-          intro: input.intro,
-          legalDisclaimer: input.legalDisclaimer?.trim() || null,
-          admins: {
-            create: {
-              email,
-              name: session.name ?? email,
-              googleSub: session.googleSub,
-              role: "SUPER_ADMIN",
+      const joinDomain = joinableEmailDomain(email);
+      const normalizedEmail = normalizeEmail(email);
+
+      try {
+        const org = await ctx.prisma.organization.create({
+          data: {
+            name: input.name.trim(),
+            slug,
+            joinDomain,
+            intro: input.intro,
+            legalDisclaimer: input.legalDisclaimer?.trim() || null,
+            admins: {
+              create: {
+                email: normalizedEmail,
+                name: session.name ?? normalizedEmail,
+                googleSub: session.googleSub,
+                role: "SUPER_ADMIN",
+              },
             },
           },
-        },
-      });
+        });
 
-      return { orgId: org.id, slug: org.slug, name: org.name };
+        return { orgId: org.id, slug: org.slug, name: org.name };
+      } catch (error) {
+        const raced = await joinMatchingOrg(ctx.prisma, {
+          email,
+          googleSub: session.googleSub,
+          name: session.name,
+        });
+        if (raced) {
+          return { orgId: raced.orgId, slug: raced.slug, name: raced.name };
+        }
+        throw error;
+      }
     }),
   previewInvite: publicProcedure
     .input(z.object({ token: z.string().min(8) }))
@@ -1033,12 +1066,13 @@ export const authRouter = router({
       if (invite.email.toLowerCase() !== email.toLowerCase()) {
         throw new TRPCError({ code: "FORBIDDEN", message: "INVITE_EMAIL_MISMATCH" });
       }
+      const normalizedEmail = normalizeEmail(email);
       await ctx.prisma.$transaction([
         ctx.prisma.adminUser.create({
           data: {
             orgId: invite.orgId,
-            email,
-            name: ctx.session?.name ?? email,
+            email: normalizedEmail,
+            name: ctx.session?.name ?? normalizedEmail,
             googleSub: ctx.session?.googleSub,
             role: invite.role,
           },

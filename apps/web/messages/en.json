@@ -40,10 +40,10 @@
       "rules": "Define who gets which signature",
       "simulate": "Test rules and preview output",
       "assets": "Logo, colors, and signature images",
-      "directory": "Employee title, phone, and photo",
+      "directory": "Add people without a login; signatures come from the directory",
       "campaigns": "Date-ranged banner campaigns",
       "deploy": "Gmail deploy health and directory sync",
-      "settings": "Workspace connection, add-in manifests, admin invites"
+      "settings": "Workspace connection, same-domain join, admin invites"
     }
   },
   "dashboard": {
@@ -88,7 +88,7 @@
       },
       "addPerson": {
         "title": "Add a person",
-        "desc": "Add a name, job title, and contact details to the directory"
+        "desc": "Add a teammate to the directory without asking them to sign in"
       },
       "startCampaign": {
         "title": "Start a campaign",
@@ -413,8 +413,8 @@
   },
   "directory": {
     "title": "Directory",
-    "subtitle": "Person fields — title, mobile, photo. Add people by hand, import a spreadsheet, or sync Google Workspace / Microsoft 365.",
-    "personFieldsHint": "These values come from the employee record, not Identity. The photo is personal; if it is missing, the signature uses the default brand image from Identity.",
+    "subtitle": "Person fields — title, mobile, photo. Teammates do not need to open the panel; add them here and the signature is compiled from templates and rules.",
+    "personFieldsHint": "These values come from the employee record, not Identity. The photo is personal; if it is missing, the signature uses the default brand image from Identity. People who later sign in with the same company email domain join this workspace automatically.",
     "syncDisabled": "Directory sync requires Workspace / Entra connection in Settings",
     "syncGoogle": "Sync Google",
     "syncMicrosoft": "Sync Microsoft",
@@ -428,6 +428,7 @@
     "mobileHint": "Enter the number without a country code. The signature adds it from the country (for example +90 for Turkey).",
     "email": "Email",
     "emailHint": "English characters only (A–Z, 0–9). Characters such as ğ, ü, ş, ı, ö, ç are not allowed.",
+    "emailJoinHint": "This person does not need to sign in. If they later sign in with the same company domain, they join this workspace.",
     "department": "Department",
     "country": "Country",
     "countryPlaceholder": "Select a country",
@@ -610,7 +611,10 @@
     "goToPanel": "Go to signature panel",
     "finishSetup": "Create organization",
     "onboardingTitle": "Create your organization",
-    "onboardingHint": "Your signature panel URL is based on this short name.",
+    "onboardingHint": "Your signature panel URL is based on this short name. Teammates who sign in with the same company email domain join this workspace.",
+    "joinTitle": "Join the existing workspace",
+    "joinHint": "Your {domain} email will connect to the {org} workspace.",
+    "joinOrg": "Join workspace",
     "orgName": "Organization name",
     "orgIntro": "Short introduction",
     "orgIntroHint": "Describe the organization in a sentence or two. You can edit this later on Identity.",
@@ -642,7 +646,10 @@
   },
   "settings": {
     "title": "Settings",
-    "subtitle": "Workspace connection, Outlook add-in, and admin invites",
+    "subtitle": "Same-domain join, Workspace connection, Outlook add-in, and admin invites",
+    "joinTitle": "Team join",
+    "joinHint": "People who sign in with @{domain} join this workspace automatically. Add them to the Directory to give them a signature — they do not need to open the panel. Invite admins with a different domain below.",
+    "joinPublicHint": "Automatic join is off because the founder used a public mailbox (Gmail, Outlook, and similar). Add people to the Directory for signatures — they do not need to open the panel. Invite admins explicitly.",
     "googleTitle": "Google Workspace",
     "googleHint": "A Workspace admin must add the service account client ID below under Domain-wide delegation with the listed scopes. Then save the admin email to impersonate.",
     "workspaceDomain": "Primary domain",
