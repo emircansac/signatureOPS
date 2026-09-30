@@ -1,7 +1,7 @@
 import { compile } from "@signatureops/compiler";
 import { lintHtml } from "@signatureops/linter";
 import { findActiveCampaignForTemplate, type TemplateDefinition } from "@signatureops/schema";
-import { brandMediaUrl } from "@/lib/media-url";
+import { compileImageUrl } from "@/lib/asset-url";
 import { appBaseUrl } from "@/env";
 import { type AssetRecord } from "./assets";
 import { buildCampaignMap } from "./compile-user-signature";
@@ -69,7 +69,7 @@ export function compileTemplatePreview(input: {
     assets: input.assets,
     campaigns: campaignMap,
     org: input.org,
-    fallbackPhotoUrl: fallbackPhoto ? brandMediaUrl(fallbackPhoto.id, baseUrl) : undefined,
+    fallbackPhotoUrl: fallbackPhoto ? compileImageUrl(fallbackPhoto, baseUrl) : undefined,
     baseUrl,
     activeCampaignId: active?.id,
   });

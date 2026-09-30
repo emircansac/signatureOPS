@@ -105,7 +105,6 @@
     "subtitle": "Tasarla, önizle, HTML'i kopyala — Gmail imza ayarlarına yapıştırın",
     "copyForGmail": "Biçimli kopyala",
     "copyHtmlSource": "HTML kopyala",
-    "copyForGmailHint": "Telefon Gmail imzası düz metindir; oraya yapıştırınca kod görünür. Bilgisayarda gmail.com → Ayarlar → Genel → İmza kutusunun içine tıklayın (kalın/italik çubuğu çıkmalı), sonra Biçimli kopyala ile yapıştırın. Çubuk yoksa menüden Dağıtım → Gmail’e dağıt — imza Gmail’e HTML olarak yazılır.",
     "create": "Yeni Şablon",
     "blocks": "Bloklar",
     "addBlock": "Blok Ekle",

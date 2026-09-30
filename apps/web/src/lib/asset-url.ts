@@ -1,3 +1,5 @@
+import { brandMediaUrl } from "./media-url";
+
 export function resolvePublicAssetUrl(url: string, baseUrl?: string): string {
   if (url.startsWith("https://")) return url;
   if (url.startsWith("http://localhost") || url.startsWith("http://127.0.0.1")) return url;
@@ -26,4 +28,22 @@ export function isAllowedAssetUrl(url: string, production: boolean): boolean {
   if (url.startsWith("/uploads/") || url.startsWith("/")) return !production;
   if (url.startsWith("http://localhost") || url.startsWith("http://127.0.0.1")) return !production;
   return false;
+}
+
+function isDirectFetchUrl(url: string): boolean {
+  return (
+    url.startsWith("https://") ||
+    url.startsWith("http://localhost") ||
+    url.startsWith("http://127.0.0.1")
+  );
+}
+
+/** URL written into compiled signature HTML so mail clients skip /api/media. */
+export function compileImageUrl(
+  asset: { id: string; url: string },
+  baseUrl?: string,
+): string {
+  const resolved = resolvePublicAssetUrl(asset.url, baseUrl);
+  if (isDirectFetchUrl(resolved)) return resolved;
+  return brandMediaUrl(asset.id, baseUrl);
 }

@@ -9,7 +9,7 @@ import {
   type TemplateDefinition,
 } from "@signatureops/schema";
 import type { PrismaClient } from "@signatureops/db";
-import { brandMediaUrl } from "@/lib/media-url";
+import { compileImageUrl } from "@/lib/asset-url";
 import { type AssetRecord } from "@/server/lib/assets";
 import { buildCompileContext } from "@/server/lib/compile-context";
 import { appBaseUrl } from "@/env";
@@ -67,7 +67,7 @@ export function buildCampaignMap(
         c.id,
         {
           id: c.id,
-          bannerUrl: banner ? brandMediaUrl(banner.id, baseUrl) : "",
+          bannerUrl: banner ? compileImageUrl(banner, baseUrl) : "",
           width: banner?.width ?? undefined,
           height: banner?.height ?? undefined,
           slogan: c.slogan?.trim() || undefined,
@@ -92,7 +92,7 @@ export function buildCampaignMap(
       if (!asset) continue;
       map[block.campaignId || assetId] = {
         id: block.campaignId || assetId,
-        bannerUrl: brandMediaUrl(asset.id, baseUrl),
+        bannerUrl: compileImageUrl(asset, baseUrl),
         width: asset.width ?? undefined,
         height: asset.height ?? undefined,
         slogan: undefined,
@@ -168,7 +168,7 @@ export async function compileUserSignature(
     assets: assets as AssetRecord[],
     campaigns: campaignMap,
     org,
-    fallbackPhotoUrl: fallbackPhoto ? brandMediaUrl(fallbackPhoto.id, appBaseUrl()) : undefined,
+    fallbackPhotoUrl: fallbackPhoto ? compileImageUrl(fallbackPhoto, appBaseUrl()) : undefined,
     baseUrl: appBaseUrl(),
   });
 

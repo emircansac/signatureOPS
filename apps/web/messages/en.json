@@ -105,7 +105,6 @@
     "subtitle": "Design, preview, copy HTML — paste into Gmail signature settings",
     "copyForGmail": "Copy formatted",
     "copyHtmlSource": "Copy HTML",
-    "copyForGmailHint": "The Gmail app signature box is plain text — a paste there shows tags. On a computer open gmail.com → Settings → See all settings → General → Signature and click inside the box (a formatting bar should appear), then paste the formatted copy. If there is no bar, use Deploy → Deploy to Gmail so the HTML is written into Gmail.",
     "create": "New Template",
     "blocks": "Blocks",
     "addBlock": "Add Block",

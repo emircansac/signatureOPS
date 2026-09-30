@@ -13,7 +13,6 @@ export function EmailComposePreview({
 
   return (
     <div>
-      <p className="mb-2 text-sm text-lead">{t("livePreview")}</p>
       <div className="border border-rule bg-paper lg:sticky lg:top-24">
         <div className="flex h-9 items-center justify-between bg-ink px-3">
           <span className="text-[13px] font-medium text-paper">{t("newMessage")}</span>

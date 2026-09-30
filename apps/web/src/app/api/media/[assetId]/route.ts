@@ -9,6 +9,14 @@ export const runtime = "nodejs";
 
 const ASSET_ID_RE = /^[a-z0-9]{8,}$/i;
 
+function isRedirectable(url: string): boolean {
+  return (
+    url.startsWith("https://") ||
+    url.startsWith("http://localhost") ||
+    url.startsWith("http://127.0.0.1")
+  );
+}
+
 export async function GET(
   _req: Request,
   context: { params: Promise<{ assetId: string }> },
@@ -26,6 +34,11 @@ export async function GET(
 
   if (asset.url.startsWith("/uploads/")) {
     return Response.redirect(`${appBaseUrl()}${asset.url}`, 302);
+  }
+
+  const publicUrl = resolvePublicAssetUrl(asset.url, appBaseUrl());
+  if (isRedirectable(publicUrl)) {
+    return Response.redirect(publicUrl, 302);
   }
 
   const env = getServerEnv();
@@ -64,9 +77,5 @@ export async function GET(
     }
   }
 
-  const target = resolvePublicAssetUrl(asset.url, appBaseUrl());
-  if (!target.startsWith("https://") && !target.startsWith("http://localhost") && !target.startsWith("http://127.0.0.1")) {
-    return new Response("Not found", { status: 404 });
-  }
-  return Response.redirect(target, 302);
+  return new Response("Not found", { status: 404 });
 }

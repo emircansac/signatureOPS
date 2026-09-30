@@ -140,7 +140,7 @@ export function TemplateEditor({
   const [copied, setCopied] = useState<"rich" | "source" | false>(false);
   const [rightTab, setRightTab] = useState<"preview" | "saved">("preview");
 
-  const { data: preview, refetch: refetchPreview } = trpc.templates.compilePreview.useQuery(
+  const { data: preview } = trpc.templates.compilePreview.useQuery(
     { definition, userId: previewUserId || users?.[0]?.id || "", templateId },
     { enabled: !!(previewUserId || users?.[0]?.id), staleTime: 0, refetchOnMount: "always" },
   );
@@ -419,15 +419,11 @@ export function TemplateEditor({
                     </option>
                   ))}
                 </Select>
-                <Button type="button" variant="secondary" className="mt-2" onClick={() => refetchPreview()}>
-                  {tc("preview")}
-                </Button>
-                {preview?.html && (
-                  <>
+                {preview?.html ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
                     <Button
                       type="button"
                       variant="secondary"
-                      className="mt-2 ml-2"
                       onClick={() => void copyHtml("rich")}
                     >
                       {copied === "rich" ? tc("copied") : t("copyForGmail")}
@@ -435,14 +431,12 @@ export function TemplateEditor({
                     <Button
                       type="button"
                       variant="secondary"
-                      className="mt-2 ml-2"
                       onClick={() => void copyHtml("source")}
                     >
                       {copied === "source" ? tc("copied") : t("copyHtmlSource")}
                     </Button>
-                    <p className="mt-2 text-xs text-lead">{t("copyForGmailHint")}</p>
-                  </>
-                )}
+                  </div>
+                ) : null}
               </div>
 
               <EmailComposePreview
