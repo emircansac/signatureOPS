@@ -305,24 +305,20 @@ export function ImageSlotEditor({
           </div>
           {source === "file" ? (
             <div>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp"
-                className="hidden"
-                onChange={(e) => onFileChosen(e.target.files?.[0])}
-              />
-              <button
-                type="button"
-                aria-label={ta("chooseFile")}
-                onClick={() => fileRef.current?.click()}
-                className="flex w-full items-center justify-between border border-rule bg-paper px-3 py-3 text-left text-sm text-ink hover:border-ink"
-              >
-                <span>{file ? file.name : ta("chooseFile")}</span>
-                <span aria-hidden="true" className="text-lead">
+              <label className="relative flex w-full cursor-pointer items-center justify-between border border-rule bg-paper px-3 py-3 text-sm text-ink hover:border-ink focus-within:border-ink">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  aria-label={ta("chooseFile")}
+                  className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+                  onChange={(e) => onFileChosen(e.target.files?.[0])}
+                />
+                <span className="pointer-events-none">{file ? file.name : ta("chooseFile")}</span>
+                <span aria-hidden="true" className="pointer-events-none text-lead">
                   {file ? `${Math.round(file.size / 1024)} KB` : ta("noFile")}
                 </span>
-              </button>
+              </label>
               <p className="mt-1 text-xs text-lead">{ta("fileHint")}</p>
             </div>
           ) : (
