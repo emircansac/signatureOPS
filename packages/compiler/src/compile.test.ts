@@ -473,3 +473,52 @@ describe("campaign render-time override", () => {
     expect(result.html).toContain("Confidential. Acme Corp");
   });
 });
+
+describe("CTA contrast", () => {
+  const identity = {
+    logoSlotIds: {},
+    socialIconMode: "standard" as const,
+    socialIconAssetIds: {},
+    colors: [
+      { id: "paper", hex: "#F6F4EF", label: "Kağıt" },
+      { id: "ink", hex: "#1C2B3A", label: "Mürekkep" },
+    ],
+    tokens: { ink: "#1C2B3A", seal: "#A63D2F", link: "#0066cc" },
+  };
+
+  it("uses dark text and a border on a light palette fill", () => {
+    const definition = parseTemplateDefinition({
+      layout: "single-column",
+      blocks: [
+        {
+          type: "cta_button",
+          label: "Book",
+          url: "https://acme.com/book",
+          colorAssetId: "paper",
+        },
+      ],
+    });
+    const result = compile(definition, { ...baseContext, identity });
+    expect(result.html).toContain("background-color:#F6F4EF");
+    expect(result.html).toContain("color:#1C2B3A");
+    expect(result.html).toMatch(/border:1px solid #[0-9a-f]{6}/);
+    expect(result.html).not.toContain("color:#ffffff;background-color:#F6F4EF");
+  });
+
+  it("keeps white text on a dark palette fill", () => {
+    const definition = parseTemplateDefinition({
+      layout: "single-column",
+      blocks: [
+        {
+          type: "cta_button",
+          label: "Book",
+          url: "https://acme.com/book",
+          colorAssetId: "ink",
+        },
+      ],
+    });
+    const result = compile(definition, { ...baseContext, identity });
+    expect(result.html).toContain("color:#ffffff;background-color:#1C2B3A");
+    expect(result.html).not.toMatch(/border:1px solid/);
+  });
+});

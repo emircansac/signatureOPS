@@ -13,6 +13,10 @@
     "./display-fit": {
       "types": "./dist/display-fit.d.ts",
       "import": "./dist/display-fit.js"
+    },
+    "./contrast": {
+      "types": "./dist/contrast.d.ts",
+      "import": "./dist/contrast.js"
     }
   },
   "scripts": {

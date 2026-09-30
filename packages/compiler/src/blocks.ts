@@ -15,6 +15,7 @@ import {
   phoneTelHref,
   resolvePlaceholders,
 } from "@signatureops/schema";
+import { ctaForeground } from "./contrast.js";
 import { escapeHtml } from "./escape.js";
 import { fittedDisplaySize, fittedLogoSize } from "./display-fit.js";
 
@@ -296,13 +297,15 @@ function renderCta(
   const url = override?.link?.trim() || block.url;
   if (!url.startsWith("https://")) return "";
   const fill = resolveColorHex(block.colorAssetId, context);
+  const foreground = ctaForeground(fill, { onLight: tokens(context).ink });
+  const borderCss = foreground.border ? `border:1px solid ${foreground.border};` : "";
   const icon = resolveAsset(block.assetId, context);
   const iconSize = icon ? fittedDisplaySize("cta_icon", icon.width, icon.height) : null;
   const iconHtml =
     icon && iconSize
       ? `${renderImg(icon, label, iconSize.width, iconSize.height, "display:inline-block;vertical-align:middle;margin-right:6px;", opts)} `
       : "";
-  return `<tr>${rowCellOpen(opts, "padding:8px 0;")}<a href="${escapeHtml(url)}" style="font-family:Arial,sans-serif;font-size:12px;color:#ffffff;background-color:${fill};text-decoration:none;padding:6px 12px;display:inline-block;border-radius:4px;">${iconHtml}${escapeHtml(label)}</a></td></tr>`;
+  return `<tr>${rowCellOpen(opts, "padding:8px 0;")}<a href="${escapeHtml(url)}" style="font-family:Arial,sans-serif;font-size:12px;color:${foreground.color};background-color:${fill};text-decoration:none;padding:6px 12px;display:inline-block;border-radius:4px;${borderCss}">${iconHtml}${escapeHtml(label)}</a></td></tr>`;
 }
 
 function renderCampaign(

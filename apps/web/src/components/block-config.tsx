@@ -2,11 +2,15 @@
 
 import { useTranslations } from "next-intl";
 import { SOCIAL_PLATFORM_IDS, type Block } from "@signatureops/schema";
+import { ctaForeground } from "@signatureops/compiler/contrast";
 import { trpc } from "@/lib/trpc";
 import { AssetPicker } from "@/components/asset-picker";
 import { PaletteColorPicker } from "@/components/palette-color-picker";
 import { Input, Label } from "@/components/ui";
 import { cn } from "@/lib/utils";
+
+/** Matches compiler DEFAULT_TOKENS.seal when identity is present. */
+const DEFAULT_CTA_FILL = "#A63D2F";
 
 const IDENTITY_FIELDS = ["displayName", "jobTitle", "department", "country"] as const;
 const CONTACT_FIELDS = ["email", "mobile", "officePhone"] as const;
@@ -15,6 +19,38 @@ const LOGO_SIZES = ["small", "large"] as const;
 
 function assetMissing(assetId: string | undefined, ids: Set<string>): boolean {
   return Boolean(assetId) && !ids.has(assetId!);
+}
+
+function CtaButtonPreview({
+  label,
+  colorAssetId,
+  colors,
+}: {
+  label: string;
+  colorAssetId?: string | null;
+  colors: { id?: string; hex: string }[];
+}) {
+  const fill =
+    (colorAssetId ? colors.find((color) => (color.id ?? color.hex) === colorAssetId)?.hex : undefined) ??
+    DEFAULT_CTA_FILL;
+  const foreground = ctaForeground(fill);
+  return (
+    <div className="mt-2">
+      <span
+        className="inline-block text-xs"
+        style={{
+          fontFamily: "Arial, sans-serif",
+          color: foreground.color,
+          backgroundColor: fill,
+          padding: "6px 12px",
+          borderRadius: 4,
+          border: foreground.border ? `1px solid ${foreground.border}` : undefined,
+        }}
+      >
+        {label}
+      </span>
+    </div>
+  );
 }
 
 export function BlockConfig({
@@ -177,6 +213,12 @@ export function BlockConfig({
               value={block.colorAssetId}
               onChange={(colorAssetId) => update({ ...block, colorAssetId })}
             />
+            <CtaButtonPreview
+              label={block.label}
+              colorAssetId={block.colorAssetId}
+              colors={identity?.colors ?? []}
+            />
+            <p className="mt-1 text-xs text-lead">{t("ctaContrastHint")}</p>
           </div>
           <div>
             <Label>{t("ctaIcon")}</Label>

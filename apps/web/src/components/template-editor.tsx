@@ -1,7 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import {
+  ArrowDown,
+  ArrowDownToLine,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Columns2,
+  X,
+} from "lucide-react";
 import type { TemplateDefinition, Block, Layout, TemplateColumn } from "@signatureops/schema";
 import { assignMissingColumns, blockColumn, defaultBlockColumn, defaultStackedColumn } from "@signatureops/schema";
 import { trpc } from "@/lib/trpc";
@@ -12,6 +21,29 @@ import { copySignatureHtml } from "@/lib/copy-signature";
 import { LintScoreBar } from "@/components/lint-score-bar";
 import { Button, Card, Input, Label, Select } from "@/components/ui";
 import { cn } from "@/lib/utils";
+
+function BlockAction({
+  title,
+  onClick,
+  children,
+}: {
+  title: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      title={title}
+      aria-label={title}
+      className="h-7 w-7 shrink-0 px-0 py-0"
+      onClick={onClick}
+    >
+      {children}
+    </Button>
+  );
+}
 
 const BLOCK_TYPES = [
   "identity",
@@ -245,54 +277,55 @@ export function TemplateEditor({
               key={`${block.type}-${index}`}
               className={`p-3 ${activeBlockIndex === index ? "border-ink" : ""}`}
             >
-              <div className="flex items-center justify-between">
+              <div className="space-y-2">
                 <button
                   type="button"
-                  className="text-left font-medium text-ink"
+                  className="block w-full min-w-0 text-left font-medium text-ink"
                   onClick={() => setActiveBlockIndex(activeBlockIndex === index ? null : index)}
                 >
                   {tb(block.type)}
                 </button>
-                <div className="flex gap-1">
+                <div className="flex flex-wrap items-center gap-0.5">
                   {definition.layout === "two-column" ? (
                     blockColumn(block, "two-column") === "below" ? (
-                      <Button
-                        variant="ghost"
+                      <BlockAction
                         title={t("moveToColumns")}
                         onClick={() => moveBlockToColumn(index, defaultStackedColumn(block.type))}
                       >
-                        {t("toColumns")}
-                      </Button>
+                        <Columns2 className="h-3.5 w-3.5" aria-hidden />
+                      </BlockAction>
                     ) : (
                       <>
-                        <Button
-                          variant="ghost"
+                        <BlockAction
                           title={t("moveToOtherColumn")}
                           onClick={() =>
                             moveBlockToColumn(index, blockColumn(block, "two-column") === 1 ? 2 : 1)
                           }
                         >
-                          {blockColumn(block, "two-column") === 1 ? "→" : "←"}
-                        </Button>
-                        <Button
-                          variant="ghost"
+                          {blockColumn(block, "two-column") === 1 ? (
+                            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+                          ) : (
+                            <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+                          )}
+                        </BlockAction>
+                        <BlockAction
                           title={t("moveBelow")}
                           onClick={() => moveBlockToColumn(index, "below")}
                         >
-                          {t("toBelow")}
-                        </Button>
+                          <ArrowDownToLine className="h-3.5 w-3.5" aria-hidden />
+                        </BlockAction>
                       </>
                     )
                   ) : null}
-                  <Button variant="ghost" onClick={() => moveBlock(index, -1)}>
-                    ↑
-                  </Button>
-                  <Button variant="ghost" onClick={() => moveBlock(index, 1)}>
-                    ↓
-                  </Button>
-                  <Button variant="ghost" onClick={() => removeBlock(index)}>
-                    ×
-                  </Button>
+                  <BlockAction title={t("moveUp")} onClick={() => moveBlock(index, -1)}>
+                    <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+                  </BlockAction>
+                  <BlockAction title={t("moveDown")} onClick={() => moveBlock(index, 1)}>
+                    <ArrowDown className="h-3.5 w-3.5" aria-hidden />
+                  </BlockAction>
+                  <BlockAction title={tc("delete")} onClick={() => removeBlock(index)}>
+                    <X className="h-3.5 w-3.5" aria-hidden />
+                  </BlockAction>
                 </div>
               </div>
               {activeBlockIndex === index && (
